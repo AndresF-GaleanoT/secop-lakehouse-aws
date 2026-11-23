@@ -5,10 +5,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Vigilancia ciudadana de la contratación pública · SECOP II</title>
-  <meta name="description" content="Todos los contratos públicos de Colombia en SECOP II desde 2015, limpios y actualizados cada día en AWS. Panorama, alertas de patrones irregulares por entidad y Ley de Garantías 2026.">
+  <meta name="description" content="Todos los contratos públicos de Colombia en SECOP II desde 2015, limpios y actualizados cada semana en AWS. Panorama, alertas de patrones irregulares por entidad y Ley de Garantías 2026.">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Vigilancia ciudadana de la contratación pública · SECOP II">
-  <meta property="og:description" content="Busca una entidad pública de Colombia y mira qué patrones irregulares tienen sus contratos. Datos de SECOP II actualizados cada día.">
+  <meta property="og:description" content="Busca una entidad pública de Colombia y mira qué patrones irregulares tienen sus contratos. Datos de SECOP II actualizados cada semana.">
   <meta property="og:locale" content="es_CO">
   <meta name="theme-color" content="#004aad">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -54,7 +54,7 @@
     <section id="inicio" class="heroe contenedor">
       <p class="caption-3 sobretitulo">Proyecto integrador · Universidad Santo Tomás, Tunja</p>
       <h1 class="heading-1 heroe-titulo">Vigila los contratos <br class="salto-ancho">públicos de Colombia</h1>
-      <p class="body-3 heroe-sub">Todos los contratos de SECOP II desde 2015, como datos abiertos limpios, sin duplicados y actualizados cada mañana en AWS. Busca una entidad y mira qué patrones irregulares tienen sus contratos.</p>
+      <p class="body-3 heroe-sub">Todos los contratos de SECOP II desde 2015, como datos abiertos limpios, sin duplicados y actualizados cada semana en AWS. Busca una entidad y mira qué patrones irregulares tienen sus contratos.</p>
       <div class="heroe-acciones">
         <a class="boton button-md" href="#buscador">Buscar una entidad</a>
       </div>
@@ -85,7 +85,7 @@
         <article class="tarjeta cifra-tarjeta revelar">
           <h2 class="title-4">Última actualización</h2>
           <p class="cifra" data-dato="actualizado">&nbsp;</p>
-          <p class="caption-5">Se actualiza cada día a las 6:00 a. m., hora de Colombia</p>
+          <p class="caption-5">Se actualiza cada lunes a las 6:00 a. m., hora de Colombia</p>
         </article>
       </div>
     </section>
@@ -280,7 +280,7 @@
         <span class="insignia" aria-hidden="true">04</span>
         <div>
           <h2 class="heading-4" id="t-como">Cómo funciona</h2>
-          <p class="body-3">Una cadena sin servidores en AWS descarga, limpia y resume los contratos cada día. Esta página lee el resultado directamente de Amazon S3.</p>
+          <p class="body-3">Una cadena sin servidores en AWS descarga, limpia y resume los contratos cada semana. Esta página lee el resultado directamente de Amazon S3.</p>
         </div>
       </header>
 
@@ -289,7 +289,7 @@
           <ol class="pasos">
             <li class="paso">
               <h3 class="title-3">Descarga</h3>
-              <p class="body-6">Una función <span class="servicio">Lambda</span> trae de datos.gov.co los contratos de los últimos 10 días con 4 hilos en paralelo y los guarda en <span class="servicio">S3</span> (capa bronce).</p>
+              <p class="body-6">Una función <span class="servicio">Lambda</span> trae de datos.gov.co los contratos de los últimos 17 días con 4 hilos en paralelo y los guarda en <span class="servicio">S3</span> (capa bronce).</p>
             </li>
             <li class="paso">
               <h3 class="title-3">Limpieza</h3>
@@ -308,14 +308,14 @@
               <p class="body-6"><span class="servicio">CloudFront</span> entrega esta página y esos JSON. Las visitas no consultan la base de datos, así que el costo no sube con el tráfico.</p>
             </li>
           </ol>
-          <p class="nota caption-2">Step Functions encadena los pasos y EventBridge Scheduler los inicia cada día a las 6:00 a. m., hora de Colombia. <span id="meta-exportacion"></span></p>
+          <p class="nota caption-2">Step Functions encadena los pasos y EventBridge Scheduler los inicia cada lunes a las 6:00 a. m., hora de Colombia. <span id="meta-exportacion"></span></p>
         </article>
 
         <div class="cifras">
           <article class="tarjeta cifra-tarjeta revelar">
             <h3 class="title-4">Costo por actualización</h3>
             <p class="cifra">US$0,07</p>
-            <p class="caption-5">medido en la carga diaria automática, con freno a los US$15 al mes</p>
+            <p class="caption-5">medido en la carga automática; una por semana son unos US$0,30 al mes, con freno a los US$15</p>
           </article>
           <article class="tarjeta cifra-tarjeta revelar">
             <h3 class="title-4">Descarga en paralelo</h3>

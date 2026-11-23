@@ -7,6 +7,10 @@ Cada informe se convierte en una sección del informe completo (partes/parte_*.t
 - el informe de adquisición se toma de su versión en español (informe_universitario.md).
 
 Uso: python generar_partes.py   (desde docs/informe_completo)
+
+Cuidado: desde noviembre de 2026 las partes cloud y cpd se editaron directamente (carga semanal, web de
+resultados y la figura compartida figuras/arquitectura.tex). Volver a generarlas desde los informes de cada
+materia borra esos cambios.
 """
 import re
 from pathlib import Path

@@ -32,7 +32,7 @@ resource "aws_glue_job" "bronze_to_silver" {
   role_arn          = aws_iam_role.glue.arn
   glue_version      = "5.0"
   worker_type       = "G.1X"
-  number_of_workers = 10 # carga histórica; el pipeline diario lo baja a 2
+  number_of_workers = 10 # carga histórica; el pipeline semanal lo baja a 2
   timeout           = 60
   max_retries       = 0
   execution_class   = "FLEX" # 0,29 USD/DPU-h en lugar de 0,44

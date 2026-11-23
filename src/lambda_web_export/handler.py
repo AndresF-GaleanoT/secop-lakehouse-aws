@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Exporta las tablas oro a archivos JSON que lee la web (S3 + CloudFront).
 
-Corre al final del pipeline diario, después de silver_to_gold. Cada consulta de Athena lee agregados
+Corre al final del pipeline semanal, después de silver_to_gold. Cada consulta de Athena lee agregados
 de oro (y dos columnas de plata), así que escanea pocos MB. La web solo descarga estos archivos: las
 visitas nunca consultan Athena, y el costo no crece con el tráfico.
 

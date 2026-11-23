@@ -1,0 +1,106 @@
+% Arquitectura para el póster: los mismos servicios que figuras/arquitectura.tex (informe completo), en una
+% versión más ancha y en letra sin serifa para la columna de Metodología. Compilar desde docs/informe_completo:
+%   pdflatex arquitectura_poster.tex
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[scaled]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc}
+\definecolor{bronce}{HTML}{A0522D}
+\definecolor{plata}{HTML}{7F8C8D}
+\definecolor{oro}{HTML}{B8860B}
+\graphicspath{{../informe_cloud/}}
+\begin{document}
+\begin{tikzpicture}[
+  font=\scriptsize,
+  >={Stealth[length=2.2mm]},
+  ico/.style={inner sep=0pt},
+  lbl/.style={below=2pt, align=center, font=\scriptsize, text width=2.0cm},
+  flujo/.style={->, line width=0.8pt, draw=black!85},
+  ctrl/.style={->, dashed, line width=0.6pt, draw=black!55},
+  capa/.style={draw=#1, line width=1pt, fill=#1!10, rounded corners=3pt, inner sep=3pt},
+]
+\def\W{9mm}
+\def\dx{2.5}
+% Control y seguridad (arriba)
+\node[ico] (eb)  at (1*\dx,2.55)   {\includegraphics[width=\W]{iconos/eventbridge.pdf}};
+\node[ico] (sfn) at (2.6*\dx,2.55) {\includegraphics[width=\W]{iconos/stepfunctions.pdf}};
+\node[ico] (iam) at (4.1*\dx,2.55) {\includegraphics[width=\W]{iconos/iam.pdf}};
+\node[ico] (cw)  at (5*\dx,2.55)   {\includegraphics[width=\W]{iconos/cloudwatch.pdf}};
+\node[ico] (bud) at (5.9*\dx,2.55) {\includegraphics[width=\W]{iconos/budgets.pdf}};
+\node[lbl] (l-eb)  at (eb.south)  {Programador\\cada lunes, 6:00};
+\node[lbl, text width=2.6cm] (l-sfn) at (sfn.south) {Step Functions\\coordina los pasos};
+\node[lbl, text width=1.9cm] (l-iam) at (iam.south) {IAM\\permisos justos};
+\node[lbl, text width=1.9cm] (l-cw)  at (cw.south)  {CloudWatch\\registros};
+\node[lbl, text width=1.9cm] (l-bud) at (bud.south) {Budgets\\tope de gasto};
+
+% Datos: de la fuente pública a la capa oro
+\node[ico] (api)    at (-0.15*\dx,0) {\includegraphics[width=\W]{iconos/internet.pdf}};
+\node[ico] (lambda) at (1*\dx,0) {\includegraphics[width=\W]{iconos/lambda.pdf}};
+\node[ico] (bronce) at (2*\dx,0) {\includegraphics[width=\W]{iconos/s3.pdf}};
+\node[ico] (glue1)  at (3*\dx,0) {\includegraphics[width=\W]{iconos/glue.pdf}};
+\node[ico] (plata)  at (4*\dx,0) {\includegraphics[width=\W]{iconos/s3.pdf}};
+\node[ico] (glue2)  at (5*\dx,0) {\includegraphics[width=\W]{iconos/glue.pdf}};
+\node[ico] (oro)    at (6*\dx,0) {\includegraphics[width=\W]{iconos/s3.pdf}};
+\node[lbl] (l-api)    at (api.south)    {Fuente pública\\SECOP~II};
+\node[lbl] (l-lambda) at (lambda.south) {Lambda\\de descarga};
+\node[lbl] (l-bronce) at (bronce.south) {\textbf{Bronce}\\datos crudos};
+\node[lbl] (l-glue1)  at (glue1.south)  {Glue:\\limpieza};
+\node[lbl] (l-plata)  at (plata.south)  {\textbf{Plata}\\datos limpios};
+\node[lbl] (l-glue2)  at (glue2.south)  {Glue:\\indicadores};
+\node[lbl] (l-oro)    at (oro.south)    {\textbf{Oro}\\seis resúmenes};
+
+% Publicación: de oro a la web pública (de derecha a izquierda)
+\node[ico] (catalog) at (6*\dx,-2.45) {\includegraphics[width=\W]{iconos/glue_catalog.pdf}};
+\node[ico] (athena)  at (5*\dx,-2.45) {\includegraphics[width=\W]{iconos/athena.pdf}};
+\node[ico] (exporta) at (4*\dx,-2.45) {\includegraphics[width=\W]{iconos/lambda.pdf}};
+\node[ico] (s3web)   at (3*\dx,-2.45) {\includegraphics[width=\W]{iconos/s3.pdf}};
+\node[ico] (cdn)     at (2*\dx,-2.45) {\includegraphics[width=\W]{iconos/cloudfront.png}};
+\node[ico] (usr)     at (-0.15*\dx,-2.45) {\includegraphics[width=\W]{iconos/users.pdf}};
+\node[lbl] (l-catalog) at (catalog.south) {Catálogo\\de tablas};
+\node[lbl] (l-athena)  at (athena.south)  {Athena\\consultas};
+\node[lbl, text width=2.3cm] (l-exporta) at (exporta.south) {Lambda: exporta\\a JSON (último paso)};
+\node[lbl] (l-s3web)   at (s3web.south)   {\textbf{S3 web}\\sitio y datos};
+\node[lbl] (l-cdn)     at (cdn.south)     {CloudFront\\HTTPS y caché};
+\node[lbl] (l-usr)     at (usr.south)     {Ciudadanía\\y veedurías};
+
+\begin{scope}[on background layer]
+  \node[capa=bronce, fit=(bronce)(l-bronce)] {};
+  \node[capa=plata,  fit=(plata)(l-plata)] {};
+  \node[capa=oro,    fit=(oro)(l-oro)] {};
+\end{scope}
+
+\draw[flujo] (api) -- (lambda);
+\draw[flujo] (lambda) -- (bronce);
+\draw[flujo] (bronce) -- (glue1);
+\draw[flujo] (glue1) -- (plata);
+\draw[flujo] (plata) -- (glue2);
+\draw[flujo] (glue2) -- (oro);
+\draw[flujo] (l-oro.south) -- (catalog.north);
+\draw[flujo] (catalog) -- (athena);
+\draw[flujo] (athena) -- (exporta);
+\draw[flujo] (exporta) -- (s3web);
+\draw[flujo] (s3web) -- (cdn);
+\draw[flujo] (cdn) -- (usr);
+
+\draw[ctrl] (eb) -- node[above, font=\scriptsize]{inicia} (sfn);
+\coordinate (bus) at ($(l-sfn.south)+(0,-0.22)$);
+\draw[dashed, line width=0.6pt, draw=black!55] (l-sfn.south) -- (bus);
+\draw[dashed, line width=0.6pt, draw=black!55] (lambda.north |- bus) -- (glue2.north |- bus);
+\draw[ctrl] (lambda.north |- bus) -- (lambda.north);
+\draw[ctrl] (glue1.north |- bus) -- (glue1.north);
+\draw[ctrl] (glue2.north |- bus) -- (glue2.north);
+
+\coordinate (arriba) at ($(eb.north)+(0,0.55)$);
+\coordinate (izq) at ($(lambda.west)+(-0.6,0)$);
+\begin{scope}[on background layer]
+  \node[draw=black!80, line width=0.8pt, inner sep=8pt, fit=(eb)(l-sfn)(l-bud)(lambda)(oro)(l-oro)(catalog)(l-catalog)(l-exporta)(cdn)(l-cdn)(arriba)(izq)] (nube) {};
+  \node[anchor=north west, inner sep=0pt] at (nube.north west) {\includegraphics[width=6mm]{iconos/aws_cloud.pdf}};
+  \node[anchor=north west, font=\scriptsize\bfseries] at ($(nube.north west)+(6.5mm,-0.5mm)$) {Nube de AWS (us-east-1)};
+\end{scope}
+\end{tikzpicture}
+\end{document}

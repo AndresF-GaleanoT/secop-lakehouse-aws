@@ -108,10 +108,10 @@ SECOP~II publica como dato abierto cada contrato del Estado colombiano, pero son
 91 columnas de texto que solo se pueden consultar por páginas. Este proyecto integrador montó en AWS, sin
 servidores propios, una cadena que descarga ese histórico, lo limpia con Apache Spark, lo organiza en capas
 bronce, plata y oro, y calcula nueve alertas por contrato para ordenar la revisión ciudadana. La descarga
-completa tarda 24 minutos con cuatro hilos por Lambda, el procesamiento costó 0,83~USD y la actualización
-diaria, 0,07~USD. El 83,7~\% de los contratos activa alguna alerta; un agrupamiento con K-means separa cuatro
+completa tarda 24 minutos con cuatro hilos por Lambda, el procesamiento costó 0,83~USD y cada actualización
+semanal, unos 0,07~USD. El 83,7~\% de los contratos activa alguna alerta; un agrupamiento con K-means separa cuatro
 perfiles de entidades, y en las semanas anteriores a la restricción electoral de 2026 la contratación directa sin excepción
-fue cuatro veces la del año anterior. Cada sección recoge la entrega de una de las materias del proyecto.
+fue cuatro veces la del año anterior. Los resultados se publican en una web que lee los datos de S3 y se actualiza cada semana. Cada sección recoge la entrega de una de las materias del proyecto.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -163,7 +163,7 @@ va a usar la solución y avanza en cinco fases:
   \item Idear: se eligió un \textit{lakehouse}~\cite{armbrust2021} en AWS con capas bronce, plata y oro.
   \item Prototipar: cada materia construyó una pieza de la cadena que descarga, limpia con Apache Spark
        ~\cite{zaharia2016} y resume los contratos.
-  \item Evaluar: se midieron la calidad de los datos, el costo y la carga diaria.
+  \item Evaluar: se midieron la calidad de los datos, el costo y la carga automática, que hoy corre cada semana.
 \end{enumerate}
 El estudio es cuantitativo, descriptivo y no experimental. Usa todos los contratos publicados, sin
 muestra y sin intervenir sobre ellos.
@@ -171,7 +171,7 @@ muestra y sin intervenir sobre ellos.
 \subsection{Organización del informe}
 Cinco materias aportan al mismo sistema. Sus entregas aparecen en el orden en que viajan los datos:
 adquisición, procesamiento paralelo, despliegue en la nube y análisis (Tabla~\ref{tab:entregas}). Cada
-entrega empieza indicando quién fue el docente, y en el encabezado de cada página aparece la materia.
+entrega empieza indicando quién fue el docente, y en el encabezado de cada página aparece la materia. Después de las entregas, la Sección~\ref{sec:web} presenta la web de resultados.
 
 \begin{table}[!htbp]
   \centering
@@ -190,7 +190,7 @@ entrega empieza indicando quién fue el docente, y en el encabezado de cada pág
       AWS Glue. Con 4 hilos la descarga completa bajó de 44,5 a 24 minutos ($S = 1{,}86$). \\
     \ref{anexo:cloud} & Cloud Computing &
       Arquitectura \textit{serverless} en AWS con permisos mínimos, freno automático de gasto de 15~USD y
-      carga diaria automática por unos 0,07~USD al día. \\
+      carga semanal automática por unos 0,07~USD por ejecución y web pública de resultados. \\
     \ref{anexo:mineria} & Minería de Datos &
       Limpieza y calidad de datos, análisis exploratorio, cuatro perfiles de entidades con K-means y reglas
       de asociación entre alertas con Apriori. \\
@@ -219,6 +219,49 @@ entrega empieza indicando quién fue el docente, y en el encabezado de cada pág
 \finmaterias
 
 % ===========================================================================
+\section{Web de resultados}\label{sec:web}
+% ===========================================================================
+Para que cualquier persona use los resultados sin escribir consultas, el sistema los publica en una web:
+\url{https://d48p8jbrfjaba.cloudfront.net} (Fig.~\ref{fig:web}). La web no consulta la base de datos. Al
+final de cada carga semanal, una Lambda corre ocho consultas en Athena sobre la capa oro (lee unos 6~MB y
+tarda menos de 20~s) y guarda los resultados como archivos JSON en un bucket privado de S3. CloudFront
+entrega la página y esos archivos por HTTPS, con caché de 15 minutos, y es el único que puede leer el
+bucket (Fig.~\ref{cloud:fig:arquitectura}). Como las visitas solo descargan archivos estáticos, el costo no
+crece con el tráfico y cabe en la capa gratuita.
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\columnwidth]{figuras/web_resultados.png}
+  \caption{Inicio de la web de resultados, con las cifras que lee de S3 (23 nov. 2026).}
+  \label{fig:web}
+\end{figure}
+
+La página sigue los tres objetivos:
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Panorama:} contratos por año, un calendario de meses y la parte que se adjudica de forma
+        directa, en contratos y en valor.
+  \item \textbf{Alertas:} un mapa por departamento, la frecuencia de cada alerta y un buscador de las 5.133
+        entidades. La ficha de cada entidad muestra sus contratos, su valor, el porcentaje con cada alerta
+        frente al promedio nacional, su puesto en el \emph{ranking} y sus contratos directos sin causal
+        alrededor de la Ley de Garantías.
+  \item \textbf{Ley de Garantías:} contratos directos por semana, con y sin causal de excepción, y las
+        entidades con más contratos sin causal durante la restricción.
+\end{itemize}
+Cada gráfica tiene una tabla equivalente y se puede recorrer con el teclado.
+
+Con los datos del 23 de noviembre de 2026 (5.720.886 contratos únicos), la web deja ver dos hechos que no
+aparecían en las tablas. El mes con más contratos es enero solo en los años de elección presidencial (2018,
+2022 y 2026), justo antes de la restricción de la Ley de Garantías; los demás años es febrero. Y la semana
+del 26 de enero de 2026 se firmaron 141.983 contratos directos sin causal de excepción, el máximo de la
+serie. La web, igual que la alerta, cuenta como directa también la modalidad «con ofertas»; por eso le da a
+la contratación directa el 43,7~\% del valor, más que el 32,2~\% de la Sección~\ref{anexo:mineria}, que solo
+cuenta la modalidad «Contratación directa».
+
+El código está publicado con licencia AGPL~3.0 en
+\url{https://github.com/AndresF-GaleanoT/secop-lakehouse-aws}, y los datos derivados, con la misma licencia
+CC~BY-SA~4.0 de SECOP~II.
+
+% ===========================================================================
 \section{Conclusiones generales}
 % ===========================================================================
 El trabajo se propuso facilitar a la ciudadanía y a los entes de control la vigilancia de la contratación pública. El objetivo se cumplió:
@@ -227,7 +270,7 @@ El trabajo se propuso facilitar a la ciudadanía y a los entes de control la vig
         duplicados en plata, y resumidos en las seis tablas de oro que responden los tres objetivos.
   \item Tres Lambdas con cuatro hilos cada una bajan el histórico en 24 minutos en vez de 44,5, y Spark procesa
         todo el histórico en unos tres minutos.
-  \item El procesamiento completo costó 0,83~USD y la actualización diaria cuesta 0,07~USD. Si el gasto
+  \item El procesamiento completo costó 0,83~USD y cada actualización semanal cuesta unos 0,07~USD. Si el gasto
         llega a 15~USD en un mes, el sistema se bloquea solo.
   \item Los 85 valores imposibles quedan fuera de las sumas, pero no se borran. Con esa regla, lo
         contratado entre 2015 y 2026 suma 859 billones de COP.
@@ -235,9 +278,11 @@ El trabajo se propuso facilitar a la ciudadanía y a los entes de control la vig
         revisar en cada caso. En el mes anterior a la Ley de Garantías hubo cuatro veces más contratos
         directos sin excepción que un año antes, y durante la restricción se firmaron 4.690 sin causal
         visible.
+  \item Los resultados están en una web pública que se alimenta de S3 cada semana, sin servidores y sin
+        costo por visita.
 \end{itemize}
 
-Quedan dos tareas: publicar los resultados en un sitio web y montar un equipo de agentes de inteligencia
+Queda una tarea: montar un equipo de agentes de inteligencia
 artificial capaz de revisar los archivos adjuntos a cada contrato, sean PDF u otro formato, y de detectar
 incoherencias entre lo pactado, el monto, las fechas y los soportes, algo que las columnas de SECOP~II no dejan ver.
 

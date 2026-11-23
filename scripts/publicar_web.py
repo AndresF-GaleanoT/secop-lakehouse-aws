@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Sube los archivos de la web (carpeta web/) al bucket que sirve CloudFront.
 
-No toca web/data/: esos JSON los escribe cada día la Lambda secop-web-export al final del pipeline.
+No toca web/data/: esos JSON los escribe cada semana la Lambda secop-web-export al final del pipeline.
 Cada archivo va con su tipo y charset, y con caché corta para que un cambio se vea en minutos.
 
 Uso:

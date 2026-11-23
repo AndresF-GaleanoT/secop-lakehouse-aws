@@ -12,7 +12,7 @@ resource "aws_sfn_state_machine" "solo_bronce" {
   definition = file("${path.module}/../stepfunctions/solo_bronce.asl.json")
 }
 
-# Pipeline diario: Lambda (últimos N días) -> bronze_to_silver (2 workers) -> silver_to_gold.
+# Pipeline semanal (conserva el nombre de cuando era diario): Lambda (últimos N días) -> bronze_to_silver (2 workers) -> silver_to_gold.
 resource "aws_sfn_state_machine" "pipeline_diario" {
   name       = "secop-pipeline-diario"
   role_arn   = aws_iam_role.stepfunctions.arn
@@ -20,11 +20,12 @@ resource "aws_sfn_state_machine" "pipeline_diario" {
   definition = file("${path.module}/../stepfunctions/pipeline_diario.asl.json")
 }
 
-# Todos los días a las 6:00 a. m. hora Colombia.
+# Cada lunes a las 6:00 a. m. hora Colombia (semanal para reducir costos). Conserva el nombre original
+# para no recrear el recurso.
 resource "aws_scheduler_schedule" "pipeline_diario" {
   name                         = "secop-pipeline-diario-6am"
-  description                  = "Pipeline diario SECOP: ultimos 10 dias, 6:00 a. m. hora Colombia"
-  schedule_expression          = "cron(0 6 * * ? *)"
+  description                  = "Pipeline semanal SECOP: ultimos 17 dias, lunes 6:00 a. m. hora Colombia"
+  schedule_expression          = "cron(0 6 ? * MON *)"
   schedule_expression_timezone = "America/Bogota"
   state                        = "ENABLED"
 

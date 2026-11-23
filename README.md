@@ -12,7 +12,7 @@ objetivos:
 
 ```
 API datos.gov.co ─► Lambda ─► S3 bronce ─► Glue bronze_to_silver ─► plata (Iceberg) ─► Glue silver_to_gold ─► oro (Iceberg) ─► Athena
-                     └──── orquestado por Step Functions, iniciado cada día por EventBridge Scheduler ────┘
+                     └──── orquestado por Step Functions, iniciado cada lunes por EventBridge Scheduler ────┘
 oro ─► Lambda secop-web-export (Athena) ─► S3 web/data/*.json ─► CloudFront ─► navegador   (último paso del pipeline)
 ```
 
@@ -29,8 +29,8 @@ oro ─► Lambda secop-web-export (Athena) ─► S3 web/data/*.json ─► Clo
 │       ├── silver_to_gold.py         Job Glue: plata → oro (una tabla por objetivo)
 │       └── lib/secop_transforms.py   Transformaciones, alertas y umbrales (los usan los dos jobs)
 ├── stepfunctions/
-│   ├── pipeline_diario.asl.json      Carga diaria (últimos 10 días, por el retraso de la API)
-│   ├── iam_*.json                    Políticas de IAM del pipeline diario y del Scheduler
+│   ├── pipeline_diario.asl.json      Carga semanal (últimos 17 días, por el retraso de la API)
+│   ├── iam_*.json                    Políticas de IAM del pipeline semanal y del Scheduler
 │   ├── carga_historica.asl.json      Carga histórica completa (un mes por Lambda, en paralelo)
 │   └── solo_bronce.asl.json          Solo descarga el histórico a bronce, sin Glue
 ├── scripts/
@@ -166,7 +166,7 @@ Crea **dos máquinas de estados** (tipo Standard, rol `secop-stepfunctions`), pe
 | `<NOMBRE_JOB_GLUE_SILVER_TO_GOLD>` | `secop-silver-to-gold` |
 | `<BUCKET_LAKE>` | nombre del bucket del lago |
 
-- `secop-pipeline-diario` ← `pipeline_diario.asl.json` (ya trae los nombres reales; entrada `{"lookback_days": 10}`)
+- `secop-pipeline-diario` ← `pipeline_diario.asl.json` (ya trae los nombres reales; entrada `{"lookback_days": 17}`)
 - `secop-carga-historica` ← `carga_historica.asl.json` (usa 10 workers de Glue y 3 meses en paralelo;
   puedes cambiarlo en el JSON)
 
@@ -187,13 +187,14 @@ ejecútala con la misma entrada. Después, la carga histórica completa reproces
 a descargar si en `carga_historica.asl.json` saltas el estado `IngestWindows` (o ejecutas directamente los
 jobs de Glue con `--SOURCE_PATH s3://<BUCKET_LAKE>/bronze/secop_contratos/`).
 
-### 9. Ejecución diaria
-**EventBridge → Scheduler → Create schedule** `secop-pipeline-diario-6am`: `cron(0 6 * * ? *)` con zona
-horaria `America/Bogota`, destino `secop-pipeline-diario` (Step Functions StartExecution), rol
-`secop-scheduler`, entrada `{"lookback_days": 10}`.
+### 9. Ejecución semanal
+**EventBridge → Scheduler → Create schedule** `secop-pipeline-diario-6am` (conserva el nombre de cuando era
+diario): `cron(0 6 ? * MON *)`, cada lunes a las 6:00 a. m., con zona horaria `America/Bogota`, destino
+`secop-pipeline-diario` (Step Functions StartExecution), rol `secop-scheduler`, entrada `{"lookback_days": 17}`.
 
-La API publica con unos días de retraso, así que cada día se vuelven a descargar los últimos 10 días: el
-`MERGE INTO` de plata actualiza los contratos que ya estaban y agrega los nuevos, sin duplicados.
+Se actualiza una vez por semana para reducir costos. La API publica con hasta 10 días de retraso, así que
+cada lunes se vuelven a descargar los últimos 17 días (10 de retraso + 6 hasta la siguiente ejecución + 1 de
+margen): el `MERGE INTO` de plata actualiza los contratos que ya estaban y agrega los nuevos, sin duplicados.
 Plata corre con 2 workers (solo procesa la carpeta de esa carga) y oro se reconstruye completo.
 
 ### 10. Athena
@@ -205,7 +206,7 @@ Las consultas de los tres objetivos están en `sql/consultas_datamart.sql`.
 ### 11. Web de resultados
 
 Sitio estático en S3 servido por CloudFront. Las visitas solo descargan archivos: nunca consultan Athena,
-así que el costo no crece con el tráfico. Cada mañana, el último paso del pipeline (`ExportaWeb`) corre la
+así que el costo no crece con el tráfico. Cada lunes, el último paso del pipeline (`ExportaWeb`) corre la
 Lambda `secop-web-export`, que hace 8 consultas sobre oro (≈ 6 MB escaneados, menos de 20 s) y deja los
 JSON en `data/`. CloudFront y el navegador los guardan 15 minutos.
 
@@ -261,7 +262,7 @@ el conjunto de datos crece cada día y la latencia de la API y de AWS cambia.
 **Informe:** desde `informe/`, ejecuta `pdflatex informe_cpd.tex` tres veces.
 
 ## Costo estimado
-Carga histórica completa: ≈ 5–10 USD (una vez). Carga diaria medida: ≈ 2,1 USD/mes. Sin ejecuciones: < 0,50 USD/mes
+Carga histórica completa: ≈ 5–10 USD (una vez). Carga semanal: ≈ 0,3 USD/mes (≈ 0,07 USD por ejecución, medido cuando la carga era diaria y costaba ≈ 2,1 USD/mes). Sin ejecuciones: < 0,50 USD/mes
 (solo almacenamiento). Son estimaciones; revisa Cost Explorer después de la primera semana.
 
 ## Fuente de datos

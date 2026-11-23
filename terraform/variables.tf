@@ -36,9 +36,9 @@ variable "parallel_pages" {
 }
 
 variable "lookback_days" {
-  description = "Días hacia atrás que descarga el pipeline diario (la API publica con retraso)."
+  description = "Días hacia atrás que descarga el pipeline semanal: 10 de retraso de la API + 6 hasta la siguiente ejecución, con un día de margen."
   type        = number
-  default     = 10
+  default     = 17
 }
 
 variable "budget_limit_usd" {

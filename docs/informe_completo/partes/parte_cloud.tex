@@ -1,10 +1,10 @@
-\noindent\textbf{Resumen.} Esta parte trata de la plataforma en AWS donde vive el histórico de SECOP~II y de cómo se mantiene al día. Solo usa servicios administrados: Lambda, Step Functions, S3, Glue con Apache Iceberg, Athena y EventBridge. Cada servicio tiene los permisos justos, el gasto se frena solo al llegar a 15~USD y la actualización diaria cuesta unos 0,07~USD. Glue costó 0,83~USD en todo el proyecto.
+\noindent\textbf{Resumen.} Esta parte trata de la plataforma en AWS donde vive el histórico de SECOP~II y de cómo se mantiene al día. Solo usa servicios administrados: Lambda, Step Functions, S3, Glue con Apache Iceberg, Athena y EventBridge. Cada servicio tiene los permisos justos, el gasto se frena solo al llegar a 15~USD y cada actualización semanal cuesta unos 0,07~USD. Glue costó 0,83~USD en todo el proyecto, y los resultados se publican en una web que se alimenta de S3.
 
 % -----------------------------------------------------------------------------
 \subsection{Introducción}\label{cloud:sec:problema}
 Una veeduría o un periodista que quiera saber, por ejemplo, qué parte se contrata sin competencia en su departamento no tiene dónde consultarlo. Responder esa pregunta exige el histórico completo y actualizado. La Sección~\ref{sec:intro} presenta el problema, los objetivos y el ODS~16.
 
-Esta materia se encargó de montar en AWS, sin servidores propios, una plataforma que cargue el histórico, lo actualice cada día sin intervención y no se salga del presupuesto.
+Esta materia se encargó de montar en AWS, sin servidores propios, una plataforma que cargue el histórico, lo actualice cada semana sin intervención, publique los resultados en una web y no se salga del presupuesto.
 
 % -----------------------------------------------------------------------------
 \subsection{Arquitectura en la nube}\label{cloud:sec:arquitectura}
@@ -12,88 +12,8 @@ Los servicios y sus conexiones están en la Fig.~\ref{cloud:fig:arquitectura}. L
 
 \begin{figure*}[!t]
 \centering
-
-
-
-\begin{tikzpicture}[
-  font=\scriptsize,
-  >={Stealth[length=2.2mm]},
-  ico/.style={inner sep=0pt},
-  lbl/.style={below=2pt, align=center, font=\scriptsize, text width=2.0cm},
-  flujo/.style={->, line width=0.8pt, draw=black!85},
-  ctrl/.style={->, dashed, line width=0.6pt, draw=black!55},
-  capa/.style={draw=#1, line width=1pt, fill=#1!10, rounded corners=3pt, inner sep=3pt},
-]
-\def\W{9mm}
-\def\dx{2.5}
-\node[ico] (api)    at (-0.15*\dx,0)  {\includegraphics[width=\W]{iconos/internet.pdf}};
-\node[ico] (lambda) at (1*\dx,0)  {\includegraphics[width=\W]{iconos/lambda.pdf}};
-\node[ico] (bronce) at (2*\dx,0)  {\includegraphics[width=\W]{iconos/s3.pdf}};
-\node[ico] (glue1)  at (3*\dx,0)  {\includegraphics[width=\W]{iconos/glue.pdf}};
-\node[ico] (plata)  at (4*\dx,0)  {\includegraphics[width=\W]{iconos/s3.pdf}};
-\node[ico] (glue2)  at (5*\dx,0)  {\includegraphics[width=\W]{iconos/glue.pdf}};
-\node[ico] (oro)    at (6*\dx,0)  {\includegraphics[width=\W]{iconos/s3.pdf}};
-
-\node[lbl] (l-api)    at (api.south)    {Fuente pública\\SECOP~II};
-\node[lbl] (l-lambda) at (lambda.south) {Lambda\\de descarga};
-\node[lbl] (l-bronce) at (bronce.south) {\textbf{Bronce}\\datos crudos};
-\node[lbl] (l-glue1)  at (glue1.south)  {Glue:\\limpieza};
-\node[lbl] (l-plata)  at (plata.south)  {\textbf{Plata}\\datos limpios};
-\node[lbl] (l-glue2)  at (glue2.south)  {Glue:\\indicadores};
-\node[lbl] (l-oro)    at (oro.south)    {\textbf{Oro}\\seis resúmenes};
-
-\node[ico] (eb)  at (1*\dx,2.6) {\includegraphics[width=\W]{iconos/eventbridge.pdf}};
-\node[ico] (sfn) at (3*\dx,2.6) {\includegraphics[width=\W]{iconos/stepfunctions.pdf}};
-\node[lbl] (l-eb)  at (eb.south)  {Programador\\cada día, 6:00};
-\node[lbl, text width=3.2cm] (l-sfn) at (sfn.south) {Step Functions\\coordina los pasos};
-
-\node[ico] (catalog) at (6*\dx,-2.75) {\includegraphics[width=\W]{iconos/glue_catalog.pdf}};
-\node[ico] (athena)  at (5*\dx,-2.75) {\includegraphics[width=\W]{iconos/athena.pdf}};
-\node[lbl, text width=2.5cm] (l-catalog) at (catalog.south) {Catálogo\\de tablas};
-\node[lbl] (l-athena)  at (athena.south)  {Athena\\consultas};
-\node[ico] (usr) at (5*\dx,-5.35) {\includegraphics[width=\W]{iconos/users.pdf}};
-\node[anchor=west, align=left, font=\scriptsize] (l-usr) at ($(usr.east)+(3pt,0)$) {Usuarios\\del sistema};
-
-\node[ico] (iam) at (1*\dx,-2.75) {\includegraphics[width=\W]{iconos/iam.pdf}};
-\node[ico] (cw)  at (2*\dx,-2.75) {\includegraphics[width=\W]{iconos/cloudwatch.pdf}};
-\node[ico] (bud) at (3*\dx,-2.75) {\includegraphics[width=\W]{iconos/budgets.pdf}};
-\node[lbl, text width=1.9cm] (l-iam) at (iam.south) {IAM\\permisos justos};
-\node[lbl, text width=1.9cm] (l-cw)  at (cw.south)  {CloudWatch\\registros};
-\node[lbl, text width=1.9cm] (l-bud) at (bud.south) {Budgets\\tope de gasto};
-
-\begin{scope}[on background layer]
-  \node[capa=bronce, fit=(bronce)(l-bronce)] {};
-  \node[capa=plata,  fit=(plata)(l-plata)] {};
-  \node[capa=oro,    fit=(oro)(l-oro)] {};
-\end{scope}
-
-\draw[flujo] (api) -- (lambda);
-\draw[flujo] (lambda) -- (bronce);
-\draw[flujo] (bronce) -- (glue1);
-\draw[flujo] (glue1) -- (plata);
-\draw[flujo] (plata) -- (glue2);
-\draw[flujo] (glue2) -- (oro);
-\draw[flujo] (l-oro.south) -- (catalog.north);
-\draw[flujo] (catalog) -- (athena);
-\draw[flujo] (l-athena.south) -- (usr.north);
-
-\draw[ctrl] (eb) -- node[above, font=\scriptsize]{inicia} (sfn);
-\coordinate (bus) at ($(l-sfn.south)+(0,-0.25)$);
-\draw[dashed, line width=0.6pt, draw=black!55] (l-sfn.south) -- (bus);
-\draw[dashed, line width=0.6pt, draw=black!55] (lambda.north |- bus) -- (glue2.north |- bus);
-\draw[ctrl] (lambda.north |- bus) -- (lambda.north);
-\draw[ctrl] (glue1.north |- bus) -- (glue1.north);
-\draw[ctrl] (glue2.north |- bus) -- (glue2.north);
-
-\coordinate (arriba) at ($(eb.north)+(0,0.55)$);
-\coordinate (izq) at ($(lambda.west)+(-0.6,0)$);
-\begin{scope}[on background layer]
-  \node[draw=black!80, line width=0.8pt, inner sep=8pt, fit=(eb)(l-sfn)(lambda)(oro)(l-oro)(l-catalog)(l-iam)(l-bud)(catalog)(arriba)(izq)] (nube) {};
-  \node[anchor=north west, inner sep=0pt] at (nube.north west) {\includegraphics[width=6mm]{iconos/aws_cloud.pdf}};
-  \node[anchor=north west, font=\scriptsize\bfseries] at ($(nube.north west)+(6.5mm,-0.5mm)$) {Nube de AWS (us-east-1)};
-\end{scope}
-\end{tikzpicture}
-\caption{Servicios de AWS que usa el sistema (íconos oficiales~\cite{aws_icons}). La línea continua sigue a los datos y la punteada, a las órdenes.}
+\resizebox{\textwidth}{!}{\input{figuras/arquitectura}}
+\caption{Servicios de AWS que usa el sistema (íconos oficiales~\cite{aws_icons}). La línea continua sigue a los datos y la punteada, a las órdenes. Cada lunes, Step Functions corre la cadena y termina exportando los resúmenes de oro a la web, que CloudFront entrega a la ciudadanía.}
 \label{cloud:fig:arquitectura}
 \end{figure*}
 
@@ -173,14 +93,16 @@ Los recursos se configuraron a mano en us-east-1, paso a paso según el \texttt{
 \toprule
 \textbf{Recurso} & \textbf{Configuración} \\
 \midrule
-Bucket S3 & Privado y cifrado; prefijos \texttt{bronze/}, \texttt{silver/}, \texttt{gold/} \\
-5 roles de IAM & Lambda, Step Functions, Scheduler, Glue y Budgets, cada uno con lo mínimo \\
+Bucket S3 del lago & Privado y cifrado; prefijos \texttt{bronze/}, \texttt{silver/}, \texttt{gold/} \\
+6 roles de IAM & Las dos Lambdas, Step Functions, Scheduler, Glue y Budgets, cada uno con lo mínimo \\
 Lambda \texttt{secop-ingest} & Python 3.12, arm64, 2.048~MB, 900~s, 4 hilos, páginas de 10.000 \\
-Step Functions & \path{secop-solo-bronce} (histórico) y \path{secop-pipeline-diario} \\
-EventBridge Scheduler & Todos los días a las 6:00 (hora de Colombia), 2 reintentos \\
+Lambda \texttt{secop-web-export} & Python 3.12, arm64, 512~MB; 8 consultas a oro en Athena \\
+Step Functions & \path{secop-solo-bronce} (histórico) y \path{secop-pipeline-diario} (hoy semanal; termina exportando la web) \\
+EventBridge Scheduler & Cada lunes a las 6:00 (hora de Colombia), 2 reintentos \\
 Glue 5.0 (Spark 3.5) & Plata con 2 o 10 \textit{workers}, oro con 5; Flex, concurrencia 1~\cite{aws_glue_iceberg} \\
 Athena, \emph{workgroup} \texttt{secop} & Máximo 1~GB escaneado por consulta \\
 AWS Budgets & 15~USD/mes, alertas al 50/80/100~\% y bloqueo automático \\
+Web (S3 y CloudFront) & Bucket privado que solo lee CloudFront (OAC), HTTPS y caché de 15~min \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -190,7 +112,7 @@ AWS Budgets & 15~USD/mes, alertas al 50/80/100~\% y bloqueo automático \\
 La Tabla~\ref{cloud:tab:costos} combina los precios públicos de us-east-1~\cite{aws_pricing} con lo que se midió en el proyecto.
 
 \begin{table}[!htbp]
-\caption{Costos (USD)}\label{cloud:tab:costos}
+\caption{Costos (USD). La columna Mes supone una actualización por semana; cuando era diaria, el mes costaba unos 2,4~USD.}\label{cloud:tab:costos}
 \centering
 \footnotesize
 \begin{tabular}{@{}Q{0.18\columnwidth}Q{0.50\columnwidth}rr@{}}
@@ -199,21 +121,22 @@ La Tabla~\ref{cloud:tab:costos} combina los precios públicos de us-east-1~\cite
 \midrule
 Lambda & 12.800 GB-s, dentro de la capa gratuita~\cite{aws_lambda_pricing} & 0,00 & 0,00 \\
 Step Functions & 0,025 USD por 1.000 transiciones~\cite{aws_sfn_pricing} & 0,02 & 0,01 \\
-Glue (Flex) & 0,29 USD/DPU-h; histórico 10.274 DPU-s; diario 886 DPU-s & 0,83 & 2,14 \\
+Glue (Flex) & 0,29 USD/DPU-h; histórico 10.274 DPU-s; 886 DPU-s por actualización & 0,83 & 0,31 \\
 S3 & 0,023 USD/GB-mes, unos 3 GB~\cite{aws_s3_pricing} & 0,05 & 0,10 \\
 Athena & 5 USD/TB escaneado~\cite{aws_athena_pricing} & 0,05 & 0,10 \\
 CloudWatch & Registros de los servicios & 0,00 & 0,05 \\
+Web & S3, CloudFront y Lambda dentro de la capa gratuita & -- & 0,00 \\
 \midrule
-\textbf{Total} & & \textbf{$\approx$1,0} & \textbf{$\approx$2,4} \\
+\textbf{Total} & & \textbf{$\approx$1,0} & \textbf{$\approx$0,6} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Para que el gasto no se dispare hay varios frenos. Un presupuesto de 15~USD al mes envía correos al 50, 80 y 100~\%, y al llegar al 100~\% una acción automática~\cite{aws_budget_actions} aplica una política que impide iniciar Step Functions, invocar la Lambda y lanzar Glue, sin borrar ningún dato. Los trabajos de Glue tienen tiempo máximo, una sola ejecución a la vez y ningún reintento automático. Athena corta toda consulta que vaya a leer más de 1~GB; contar los contratos de plata leyó solo 3,2~MB. Y si la carga diaria llega vacía, Glue no arranca.
+Para que el gasto no se dispare hay varios frenos. Un presupuesto de 15~USD al mes envía correos al 50, 80 y 100~\%, y al llegar al 100~\% una acción automática~\cite{aws_budget_actions} aplica una política que impide iniciar Step Functions, invocar la Lambda y lanzar Glue, sin borrar ningún dato. Los trabajos de Glue tienen tiempo máximo, una sola ejecución a la vez y ningún reintento automático. Athena corta toda consulta que vaya a leer más de 1~GB; contar los contratos de plata leyó solo 3,2~MB. Y si la carga semanal llega vacía, Glue no arranca.
 
 % -----------------------------------------------------------------------------
 \subsection{Resultados}\label{cloud:sec:avance}
-Todo está desplegado y funcionando; solo falta la página web de resultados. Bronce tiene 5.687.382 contratos en 732 archivos (2,3~GB) y no se perdió ningún tramo. Plata guarda 5.687.110 contratos únicos en 137 particiones mensuales (107~MiB); se construyó en 199~s y costó 0,12~USD. De las seis tablas de oro (Tabla~\ref{cloud:tab:oro}), la de alertas ocupa casi todo el espacio, y las otras cinco son resúmenes pequeños que se pueden publicar en una web. Cuando hubo que añadir tres columnas, Iceberg las agregó sin reescribir los datos~\cite{asf_iceberg_evolution}, y reprocesar todo costó 0,44~USD.
+Todo está desplegado y funcionando, incluida la web de resultados (Sección~\ref{sec:web}). Bronce tiene 5.687.382 contratos en 732 archivos (2,3~GB) y no se perdió ningún tramo. Plata guarda 5.687.110 contratos únicos en 137 particiones mensuales (107~MiB); se construyó en 199~s y costó 0,12~USD. De las seis tablas de oro (Tabla~\ref{cloud:tab:oro}), la de alertas ocupa casi todo el espacio, y las otras cinco son resúmenes pequeños, que son los que publica la web. Cuando hubo que añadir tres columnas, Iceberg las agregó sin reescribir los datos~\cite{asf_iceberg_evolution}, y reprocesar todo costó 0,44~USD.
 
 \begin{table}[!htbp]
 \caption{Tamaño de las seis tablas de oro}\label{cloud:tab:oro}
@@ -238,17 +161,17 @@ El 83,7~\% de los contratos activa al menos una alerta (Tabla~\ref{adq:t7}), y m
 
 Hay contratos con valores de hasta 4,4$\times 10^{17}$~COP; un hospital de Lérida aparece con 100 billones en un solo contrato. La regla de valor los deja fuera de las sumas sin borrarlos. Todos los casos revisados por encima de 10 billones eran errores. Entre 1 y 10 billones puede haber alguno real, como uno de la Registraduría por 3,3 billones, que también queda fuera.
 
-\subsubsection{Carga diaria}
-Cada mañana, Step Functions baja los últimos 10 días, comprueba si llegaron contratos y, si hay alguno, corre plata y oro. En la prueba del 13 de noviembre de 2026 tardó 8~min~11~s y sumó 15.160 contratos nuevos. Cada día cuesta unos 0,07~USD.
+\subsubsection{Carga semanal}
+Cada lunes, Step Functions baja los últimos 17 días, comprueba si llegaron contratos y, si hay alguno, corre plata y oro y exporta la web. Hasta el 23 de noviembre de 2026 la carga era diaria y repetía 10 días; en la prueba del 13 de noviembre tardó 8~min~11~s, sumó 15.160 contratos nuevos y costó unos 0,07~USD. Para reducir costos pasó a una vez por semana: unos 0,3~USD al mes en vez de 2,1.
 
 \subsubsection{Problemas y soluciones}
-Con páginas de 50.000 contratos la Lambda se quedaba sin memoria, así que se bajaron a 10.000 y la memoria se subió a 2.048~MB. La Lambda venía configurada con 3~s de tiempo máximo y hubo que llevarla a 900~s. Cinco meses tardaban más de 15 minutos y se partieron en días. Los cortes de conexión de la API se cubrieron con reintentos en la Lambda y en Step Functions. La consola sugería Glue 6.0 con 480 minutos de límite; se dejó Glue 5.0, porque el código está escrito para Spark 3.5~\cite{aws_glue_versions}, con un límite mucho menor. Como la API publica con cinco o seis días de atraso, la carga diaria repite los últimos 10 días y el \texttt{MERGE} evita los duplicados.
+Con páginas de 50.000 contratos la Lambda se quedaba sin memoria, así que se bajaron a 10.000 y la memoria se subió a 2.048~MB. La Lambda venía configurada con 3~s de tiempo máximo y hubo que llevarla a 900~s. Cinco meses tardaban más de 15 minutos y se partieron en días. Los cortes de conexión de la API se cubrieron con reintentos en la Lambda y en Step Functions. La consola sugería Glue 6.0 con 480 minutos de límite; se dejó Glue 5.0, porque el código está escrito para Spark 3.5~\cite{aws_glue_versions}, con un límite mucho menor. Como la API publica con cinco o seis días de atraso, la carga semanal repite los últimos 17 días, así que cada día se vuelve a leer al menos diez días después, y el \texttt{MERGE} evita los duplicados.
 
 % -----------------------------------------------------------------------------
 \subsection{Conclusiones}\label{cloud:sec:conclusiones}
 \begin{itemize}
   \item El histórico completo quedó en AWS sin perder tramos y con un freno automático de gasto.
   \item Cuando cambiaron los objetivos, Iceberg permitió añadir columnas y reprocesar todo por 0,44~USD.
-  \item Glue costó 0,83~USD contando las pruebas, y la carga diaria funciona sola por unos 0,07~USD.
-  \item Faltan dos tareas: borrar los \emph{snapshots} viejos de Iceberg y publicar una web con los resultados.
+  \item Glue costó 0,83~USD contando las pruebas, y la carga semanal funciona sola por unos 0,07~USD por ejecución.
+  \item La web de resultados ya está publicada; falta borrar los \emph{snapshots} viejos de Iceberg.
 \end{itemize}

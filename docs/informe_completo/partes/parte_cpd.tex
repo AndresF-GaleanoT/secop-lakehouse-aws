@@ -39,7 +39,7 @@ En la Fig.~\ref{cpd:fig:arq} aparece el recorrido completo. AWS administra todos
 \draw[arr] (g2) -- (oro);
 \draw[arr] (oro) -- (ath);
 \node[draw, dashed, rounded corners, fit=(api)(lam)(bro)(g1)(pla)(g2), inner sep=2mm,
-  label={[font=\scriptsize]above:Coordinado cada día por Step Functions}] {};
+  label={[font=\scriptsize]above:Coordinado cada semana por Step Functions}] {};
 \end{tikzpicture}
 \caption{Recorrido de los datos por las capas bronce, plata y oro.}
 \label{cpd:fig:arq}
@@ -171,11 +171,11 @@ Contratos por segundo y \textit{worker} & $\approx$ 200 & $\approx$ 2.860 \\
 
 Oro consume menos que plata con la mitad de \textit{workers}, porque lee Parquet con pocas columnas y plata lee JSON con 91. En modo Flex, dos corridas de plata sobre los mismos datos tardaron 188 y 240~s, mientras que sus DPU-s apenas variaron un 5~\%. La diferencia estuvo en la espera por \textit{workers}, y por eso el experimento~B se corrió en modo Standard. Las alertas y la Ley de Garantías están en las Tablas~\ref{adq:t7} y \ref{adq:t8}.
 
-\subsubsection{Carga diaria}
-Todos los días a las 6:00~a.~m., EventBridge Scheduler lanza el pipeline. Como la API publica con días de retraso, se vuelven a bajar los últimos 10 días y el \texttt{MERGE} actualiza lo que ya existía (Tabla~\ref{cpd:tab:diario}). Cada ejecución cuesta unos 0,07~USD.
+\subsubsection{Carga semanal}
+Cada lunes a las 6:00~a.~m., EventBridge Scheduler lanza el pipeline. Como la API publica con días de retraso, se vuelven a bajar los últimos 17 días y el \texttt{MERGE} actualiza lo que ya existía. Hasta el 23 de noviembre de 2026 la carga era diaria y bajaba 10 días (Tabla~\ref{cpd:tab:diario}); cada ejecución cuesta unos 0,07~USD.
 
 \begin{table}[!htbp]
-\caption{Una actualización diaria completa, medida el 13 nov. 2026}
+\caption{Una actualización completa, medida el 13 nov. 2026, cuando la carga era diaria}
 \label{cpd:tab:diario}
 \centering
 \begin{tabular}{@{}lrr@{}}
@@ -262,6 +262,6 @@ Un presupuesto de 15~USD avisa al 50, 80 y 100~\% y, al llegar al tope, bloquea 
   \item Las Lambdas, los hilos y Spark trabajan juntos como tres niveles de paralelismo sobre el mismo flujo.
   \item Con cuatro hilos la descarga bajó de 44,5 a 24 minutos. Más hilos no ayudan, porque la mayoría de los tramos tiene una página y la API es compartida.
   \item Para este volumen, 4 \textit{workers} de Spark dan el mejor balance entre tiempo y costo.
-  \item Los cuatro fallos de la carga histórica se recuperaron sin perder datos, y la carga diaria cuesta 0,07~USD.
+  \item Los cuatro fallos de la carga histórica se recuperaron sin perder datos, y cada carga semanal cuesta unos 0,07~USD.
   \item Falta medir cada etapa de Spark por separado para saber qué frena su \textit{speedup}.
 \end{itemize}

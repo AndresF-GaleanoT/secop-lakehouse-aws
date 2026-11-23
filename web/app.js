@@ -1264,7 +1264,7 @@ async function cargar(nombre) {
 function mostrarError(error) {
   console.error(error);
   const aviso = $("#error-general");
-  aviso.textContent = "No se pudieron cargar los datos. Recarga la página en unos minutos; si el problema sigue, la exportación diaria pudo fallar.";
+  aviso.textContent = "No se pudieron cargar los datos. Recarga la página en unos minutos; si el problema sigue, la exportación semanal pudo fallar.";
   aviso.hidden = false;
   document.querySelectorAll(".cargando").forEach((n) => {
     n.classList.remove("cargando");
