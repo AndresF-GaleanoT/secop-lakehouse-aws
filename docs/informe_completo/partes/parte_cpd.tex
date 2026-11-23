@@ -172,7 +172,7 @@ Contratos por segundo y \textit{worker} & $\approx$ 200 & $\approx$ 2.860 \\
 Oro consume menos que plata con la mitad de \textit{workers}, porque lee Parquet con pocas columnas y plata lee JSON con 91. En modo Flex, dos corridas de plata sobre los mismos datos tardaron 188 y 240~s, mientras que sus DPU-s apenas variaron un 5~\%. La diferencia estuvo en la espera por \textit{workers}, y por eso el experimento~B se corrió en modo Standard. Las alertas y la Ley de Garantías están en las Tablas~\ref{adq:t7} y \ref{adq:t8}.
 
 \subsubsection{Carga semanal}
-Cada lunes a las 6:00~a.~m., EventBridge Scheduler lanza el pipeline. Como la API publica con días de retraso, se vuelven a bajar los últimos 17 días y el \texttt{MERGE} actualiza lo que ya existía. Hasta el 23 de noviembre de 2026 la carga era diaria y bajaba 10 días (Tabla~\ref{cpd:tab:diario}); cada ejecución cuesta unos 0,07~USD.
+Cada lunes a las 6:00~a.~m., EventBridge Scheduler lanza el pipeline. Como la API publica con días de retraso, se vuelven a bajar los últimos 90 días, porque algunos contratos aparecen uno o dos meses después de firmados, y el \texttt{MERGE} actualiza lo que ya existía. Hasta el 23 de noviembre de 2026 la carga era diaria y bajaba 10 días (Tabla~\ref{cpd:tab:diario}); cada ejecución cuesta unos 0,07~USD.
 
 \begin{table}[!htbp]
 \caption{Una actualización completa, medida el 13 nov. 2026, cuando la carga era diaria}

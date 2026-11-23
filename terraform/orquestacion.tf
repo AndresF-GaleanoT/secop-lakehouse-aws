@@ -24,7 +24,7 @@ resource "aws_sfn_state_machine" "pipeline_diario" {
 # para no recrear el recurso.
 resource "aws_scheduler_schedule" "pipeline_diario" {
   name                         = "secop-pipeline-diario-6am"
-  description                  = "Pipeline semanal SECOP: ultimos 17 dias, lunes 6:00 a. m. hora Colombia"
+  description                  = "Pipeline semanal SECOP: ultimos 90 dias, lunes 6:00 a. m. hora Colombia"
   schedule_expression          = "cron(0 6 ? * MON *)"
   schedule_expression_timezone = "America/Bogota"
   state                        = "ENABLED"

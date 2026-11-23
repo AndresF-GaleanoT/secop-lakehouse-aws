@@ -36,9 +36,9 @@ variable "parallel_pages" {
 }
 
 variable "lookback_days" {
-  description = "Días hacia atrás que descarga el pipeline semanal: 10 de retraso de la API + 6 hasta la siguiente ejecución, con un día de margen."
+  description = "Días hacia atrás que descarga el pipeline semanal: SECOP publica algunos contratos hasta dos meses después de firmados."
   type        = number
-  default     = 17
+  default     = 90
 }
 
 variable "budget_limit_usd" {

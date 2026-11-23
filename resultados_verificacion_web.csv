@@ -1,17 +1,17 @@
 verificacion,valor_web,valor_independiente,fuente,diferencia,resultado,nota
-Contratos únicos (inicio),5720886,5720886,plata,0.0,COINCIDE,
-Sin id_contrato repetido en plata,5720886,5720886,plata,0.0,COINCIDE,
-"Valor contratado, COP (inicio)",878144717563634.5,878144717563634.46,plata,0.0,COINCIDE,
+Contratos únicos (inicio),5727167,5727167,plata,0.0,COINCIDE,
+Sin id_contrato repetido en plata,5727167,5727167,plata,0.0,COINCIDE,
+"Valor contratado, COP (inicio)",878494558814526.5,878494558814526.53,plata,0.0,COINCIDE,
 Valores imposibles excluidos de las sumas,85,85,plata,0.0,COINCIDE,más de un billón: 85; negativos: 0; sin valor: 0
 % contratación directa (contratos),77.6,77.6,plata,0.0,COINCIDE,
 % del valor por contratación directa,43.7,43.7,plata,0.0,COINCIDE,
-Último contrato firmado,2026-11-21,2026-11-21,plata,,COINCIDE,
-Alerta contratacion directa,4437500,4437500,plata,0.0,COINCIDE,
-Alerta fin de semana,333222,333222,plata,0.0,COINCIDE,
-Alerta inicio antes de firma,210015,210015,plata,0.0,COINCIDE,
-Alerta contratista no identificado,16327,16327,plata,0.0,COINCIDE,
+Último contrato firmado,2026-11-22,2026-11-22,plata,,COINCIDE,
+Alerta contratacion directa,4443000,4443000,plata,0.0,COINCIDE,
+Alerta fin de semana,333741,333741,plata,0.0,COINCIDE,
+Alerta inicio antes de firma,210013,210013,plata,0.0,COINCIDE,
+Alerta contratista no identificado,16295,16295,plata,0.0,COINCIDE,
 Alerta anticipo alto,162,162,plata,0.0,COINCIDE,
-Contratos con al menos una alerta (consistencia oro),4785083,4785083,oro: gold_alertas_contratos,0.0,COINCIDE,
+Contratos con al menos una alerta (consistencia oro),4790938,4790938,oro: gold_alertas_contratos,0.0,COINCIDE,
 Contratos firmados en 2015,10,10,plata,0.0,COINCIDE,
 Contratos firmados en 2016,1340,1340,plata,0.0,COINCIDE,
 Contratos firmados en 2017,22224,22224,plata,0.0,COINCIDE,
@@ -23,8 +23,8 @@ Contratos firmados en 2022,707734,707734,plata,0.0,COINCIDE,
 Contratos firmados en 2023,835394,835394,plata,0.0,COINCIDE,
 Contratos firmados en 2024,881921,881921,plata,0.0,COINCIDE,
 Contratos firmados en 2025,1016998,1016998,plata,0.0,COINCIDE,
-Contratos firmados en 2026,989947,989947,plata,0.0,COINCIDE,
-Años con pico en enero = años de elección presidencial,"2018,2022,2026","2018,2022,2026",plata,,COINCIDE,"pico de cada año: {2026: 1, 2019: 2, 2022: 1, 2021: 2, 2018: 1, 2017: 12, 2025: 2, 2024: 2, 2020: 2, 2023: 2}; febrero en 6 de los demás años completos"
+Contratos firmados en 2026,996229,996229,plata,0.0,COINCIDE,
+Años con pico en enero = años de elección presidencial,"2018,2022,2026","2018,2022,2026",plata,,COINCIDE,"pico de cada año: {2017: 12, 2024: 2, 2018: 1, 2025: 2, 2023: 2, 2020: 2, 2026: 1, 2021: 2, 2022: 1, 2019: 2}; febrero en 6 de los demás años completos"
 "Ley: directa sin excepción, mismo mes de 2025",104813,104813,plata,0.0,COINCIDE,
 "Ley: directa con excepción, mismo mes de 2025",10024,10024,plata,0.0,COINCIDE,
 "Ley: directa sin excepción, mes antes de la restricción",422012,422012,plata,0.0,COINCIDE,
@@ -34,10 +34,10 @@ Años con pico en enero = años de elección presidencial,"2018,2022,2026","2018
 "Ley: directa sin excepción, mes después",57991,57991,plata,0.0,COINCIDE,
 "Ley: directa con excepción, mes después",2048,2048,plata,0.0,COINCIDE,
 Semana con más directa sin excepción,2026-01-26 (141983),2026-01-26 (141983),plata,,COINCIDE,
-Contratos de ALCALDIA DE PUERTO COLOMBIA (NIT 8000943862),928,928,plata,0.0,COINCIDE,
-Contratos de ESCUELA DE FORMACION INPEC (NIT 832001871),3474,3474,plata,0.0,COINCIDE,
+Contratos de ALCALDIA DE PUERTO COLOMBIA (NIT 8000943862),929,929,plata,0.0,COINCIDE,
+Contratos de ESCUELA DE FORMACION INPEC (NIT 832001871),3476,3476,plata,0.0,COINCIDE,
 ESCUELA DE FORMACION INPEC: directa sin excepción en la restricción,266,266,plata,0.0,COINCIDE,
-Registros en la API frente a contratos únicos,5720886,5730040,API SECOP II,-9154.0,COINCIDE,la API tiene 9.154 filas más: duplicados por id_contrato. filas sin id y lo publicado después de la última carga
+Registros en la API frente a contratos únicos,5727167,5730040,API SECOP II,-2873.0,COINCIDE,la API tiene 2.873 filas más: duplicados por id_contrato. filas sin id y lo publicado después de la última carga
 Contratos 2016 frente a la API,1340,1340,API SECOP II,0.0,COINCIDE,
 Contratos 2017 frente a la API,22224,22224,API SECOP II,0.0,COINCIDE,
 Contratos 2018 frente a la API,142586,142586,API SECOP II,0.0,COINCIDE,
@@ -48,7 +48,7 @@ Contratos 2022 frente a la API,707734,707734,API SECOP II,0.0,COINCIDE,
 Contratos 2023 frente a la API,835394,835394,API SECOP II,0.0,COINCIDE,
 Contratos 2024 frente a la API,881921,881937,API SECOP II,-16.0,REVISAR,faltan 16 contratos publicados después de la ventana de carga
 Contratos 2025 frente a la API,1016998,1017006,API SECOP II,-8.0,REVISAR,faltan 8 contratos publicados después de la ventana de carga
-Contratos 2026 frente a la API,989947,996357,API SECOP II,-6410.0,REVISAR,faltan 6410 contratos publicados después de la ventana de carga
+Contratos 2026 frente a la API,996229,996357,API SECOP II,-128.0,REVISAR,faltan 128 contratos publicados después de la ventana de carga
 Contratos ene. 2026 frente a la API,487354,487374,API SECOP II,-20.0,REVISAR,faltan 20
 Contratos feb. 2026 frente a la API,22252,22252,API SECOP II,0.0,COINCIDE,
 Contratos mar. 2026 frente a la API,17155,17155,API SECOP II,0.0,COINCIDE,
@@ -56,11 +56,11 @@ Contratos abr. 2026 frente a la API,16137,16137,API SECOP II,0.0,COINCIDE,
 Contratos may. 2026 frente a la API,15331,15331,API SECOP II,0.0,COINCIDE,
 Contratos jun. 2026 frente a la API,21132,21199,API SECOP II,-67.0,REVISAR,faltan 67
 Contratos jul. 2026 frente a la API,103893,103916,API SECOP II,-23.0,REVISAR,faltan 23
-Contratos ago. 2026 frente a la API,98057,98076,API SECOP II,-19.0,REVISAR,faltan 19
-Contratos sep. 2026 frente a la API,83105,88818,API SECOP II,-5713.0,REVISAR,faltan 5713
-Contratos oct. 2026 frente a la API,80247,80502,API SECOP II,-255.0,REVISAR,faltan 255
-Contratos nov. 2026 frente a la API,45284,45597,API SECOP II,-313.0,REVISAR,faltan 313
-Contratos del NIT 8000943862 frente a la API,928,963,API SECOP II,-35.0,COINCIDE,la API repite contratos; plata deja uno por id_contrato
+Contratos ago. 2026 frente a la API,98058,98076,API SECOP II,-18.0,REVISAR,faltan 18
+Contratos sep. 2026 frente a la API,88818,88818,API SECOP II,0.0,COINCIDE,
+Contratos oct. 2026 frente a la API,80502,80502,API SECOP II,0.0,COINCIDE,
+Contratos nov. 2026 frente a la API,45597,45597,API SECOP II,0.0,COINCIDE,
+Contratos del NIT 8000943862 frente a la API,929,963,API SECOP II,-34.0,COINCIDE,la API repite contratos; plata deja uno por id_contrato
 Entidades partidas en dos NIT (con y sin dígito de verificación),,128,plata,,LIMITACIÓN,SECOP publica algunas entidades con y sin dígito de verificación; la web las muestra separadas
 "Speedup de la descarga con 4 hilos (1,86×)",1.86,1.86,resultados_benchmark_historico.csv,0.0,COINCIDE,
 "Descarga completa con 1 hilo (44,5 min)",44.5,44.5,resultados_benchmark_historico.csv,0.0,COINCIDE,

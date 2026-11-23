@@ -1,5 +1,5 @@
 {
-  "Comment": "Pipeline semanal SECOP: ingesta de los últimos 17 días (Lambda) -> bronze_to_silver (Glue) -> silver_to_gold (Glue) -> exporta la web (Lambda). Lo inicia EventBridge Scheduler cada lunes a las 6:00 a. m. hora Colombia.",
+  "Comment": "Pipeline semanal SECOP: ingesta de los últimos 90 días (Lambda) -> bronze_to_silver (Glue) -> silver_to_gold (Glue) -> exporta la web (Lambda). Lo inicia EventBridge Scheduler cada lunes a las 6:00 a. m. hora Colombia.",
   "StartAt": "IngestBronze",
   "States": {
     "IngestBronze": {

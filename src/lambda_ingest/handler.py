@@ -3,7 +3,7 @@
 
 Eventos de entrada:
     {}                                                -> carga diaria: el día anterior (hora Colombia)
-    {"lookback_days": 17}                             -> los últimos 17 días hasta ayer (pipeline semanal:
+    {"lookback_days": 90}                             -> los últimos 90 días hasta ayer (pipeline semanal:
                                                          la API publica con unos días de retraso)
     {"ingest_date": "2026-10-31"}                     -> un día puntual
     {"start_date": "2024-03-01", "end_date": "2024-03-31"}  -> un rango (carga histórica, por mes)
