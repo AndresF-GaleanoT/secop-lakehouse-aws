@@ -1,0 +1,87 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ley de Garantías 2026 · Vigilancia SECOP</title>
+  <meta name="description" content="Contratación directa antes, durante y después de la restricción de la Ley de Garantías de 2026 en Colombia, con datos de SECOP II.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Ley de Garantías 2026 · Vigilancia SECOP">
+  <meta property="og:description" content="Contratación directa antes, durante y después de la restricción de la Ley de Garantías de 2026 en Colombia, con datos de SECOP II.">
+  <meta property="og:locale" content="es_CO">
+  <meta name="theme-color" content="#004aad">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="estilos.css">
+  <script>document.documentElement.classList.add("js");</script>
+  <script src="app.js" defer></script>
+</head>
+<body data-pagina="ley">
+  <a class="saltar button-sm" href="#contenido">Saltar al contenido</a>
+  <div id="marco-nav"></div>
+
+  <main id="contenido" class="pagina">
+    <div class="contenedor">
+      <header class="pagina-cabecera revelar">
+        <span class="insignia" aria-hidden="true">04</span>
+        <div>
+          <h1 class="heading-2">Ley de Garantías 2026</h1>
+          <p class="body-3">Del 31 de enero al 21 de junio de 2026 la contratación directa estuvo restringida por las elecciones (Ley 996 de 2005, art. 33). Solo se permitía con una causal de excepción, como una emergencia, la defensa nacional o la salud.</p>
+        </div>
+      </header>
+
+      <div class="cifras" style="margin-bottom:var(--e-300)">
+        <article class="tarjeta cifra-tarjeta revelar">
+          <h2 class="title-4">Mes antes de la restricción</h2>
+          <p class="cifra" data-dato="ley-antes">&nbsp;</p>
+          <p class="caption-5">contratos directos sin causal de excepción, del 31 dic. 2025 al 30 ene. 2026</p>
+        </article>
+        <article class="tarjeta cifra-tarjeta revelar">
+          <h2 class="title-4">Mismo mes de 2025, sin elecciones</h2>
+          <p class="cifra" data-dato="ley-2025">&nbsp;</p>
+          <p class="caption-5">contratos directos sin causal de excepción, del 31 dic. 2024 al 30 ene. 2025</p>
+        </article>
+        <article class="tarjeta cifra-tarjeta revelar">
+          <h2 class="title-4">Diferencia</h2>
+          <p class="cifra" data-dato="ley-veces">&nbsp;</p>
+          <p class="caption-5">más contratación directa sin excepción justo antes de la restricción</p>
+        </article>
+        <article class="tarjeta cifra-tarjeta revelar">
+          <h2 class="title-4">Durante la restricción</h2>
+          <p class="cifra" data-dato="ley-durante">&nbsp;</p>
+          <p class="caption-5">contratos directos sin causal visible, del 31 ene. al 21 jun. 2026</p>
+        </article>
+      </div>
+
+      <div class="rejilla">
+        <article class="tarjeta revelar">
+          <header class="tarjeta-cabecera">
+            <h2 class="heading-6">Contratos directos por semana</h2>
+            <p class="caption-2">Con y sin causal de excepción. La franja marca la restricción.</p>
+          </header>
+          <ul class="leyenda caption-4">
+            <li><span class="clave-linea" style="background:var(--serie-2)"></span>Sin causal de excepción</li>
+            <li><span class="clave-linea" style="background:var(--serie-1)"></span>Con causal de excepción</li>
+          </ul>
+          <div class="lienzo cargando" id="g-ley" style="--alto:320px"></div>
+          <p class="nota caption-5" id="n-ley"></p>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-ley"></div></details>
+        </article>
+
+        <article class="tarjeta revelar">
+          <header class="tarjeta-cabecera">
+            <h2 class="heading-6">Entidades con más contratos directos sin causal durante la restricción</h2>
+            <p class="caption-2">Es un patrón para revisar: la causal pudo publicarse mal. Toca una fila para abrir la ficha de la entidad.</p>
+          </header>
+          <div class="tabla-envoltura" id="t-ley-entidades"><div class="cargando" style="--alto:320px"></div></div>
+        </article>
+      </div>
+    </div>
+  </main>
+
+  <div id="marco-pie"></div>
+</body>
+</html>

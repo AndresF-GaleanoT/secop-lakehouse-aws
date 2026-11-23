@@ -1,0 +1,84 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alertas por entidad y departamento · Vigilancia SECOP</title>
+  <meta name="description" content="Nueve alertas por contrato para priorizar la revisión de la contratación pública en Colombia: mapa por departamento y ranking de entidades.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Alertas por entidad y departamento · Vigilancia SECOP">
+  <meta property="og:description" content="Nueve alertas por contrato para priorizar la revisión de la contratación pública en Colombia: mapa por departamento y ranking de entidades.">
+  <meta property="og:locale" content="es_CO">
+  <meta name="theme-color" content="#004aad">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="estilos.css">
+  <script>document.documentElement.classList.add("js");</script>
+  <script src="app.js" defer></script>
+</head>
+<body data-pagina="alertas">
+  <a class="saltar button-sm" href="#contenido">Saltar al contenido</a>
+  <div id="marco-nav"></div>
+
+  <main id="contenido" class="pagina">
+    <div class="contenedor">
+      <header class="pagina-cabecera revelar">
+        <span class="insignia" aria-hidden="true">02</span>
+        <div>
+          <h1 class="heading-2">Patrones irregulares por entidad y departamento</h1>
+          <p class="body-3">Nueve alertas por contrato ayudan a decidir qué revisar primero. No califican conductas: un contrato con alertas puede tener una explicación válida.</p>
+        </div>
+      </header>
+
+      <div class="rejilla rejilla-2">
+        <article class="tarjeta revelar">
+          <header class="tarjeta-cabecera">
+            <h2 class="heading-6">Mapa por departamento</h2>
+            <p class="caption-2">Cada cuadro es un departamento, en una ubicación aproximada. Toca uno para filtrar el ranking.</p>
+          </header>
+          <div class="segmentos" role="group" aria-label="Dato del mapa" id="metricas-mapa">
+            <button type="button" class="button-sm" data-metrica="pct_contratos_con_alerta" aria-pressed="true">Con alerta</button>
+            <button type="button" class="button-sm" data-metrica="pct_contratacion_directa" aria-pressed="false">Directa</button>
+            <button type="button" class="button-sm" data-metrica="contratos" aria-pressed="false">Contratos</button>
+          </div>
+          <div class="lienzo cargando" id="g-mapa" style="--alto:420px"></div>
+          <p class="nota caption-5" id="n-mapa"></p>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-mapa"></div></details>
+        </article>
+
+        <article class="tarjeta revelar">
+          <header class="tarjeta-cabecera">
+            <h2 class="heading-6">Qué tan común es cada alerta</h2>
+            <p class="caption-2">Porcentaje de todos los contratos que activa cada alerta.</p>
+          </header>
+          <div class="lienzo cargando" id="g-alertas" style="--alto:420px"></div>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-alertas-tabla"></div></details>
+        </article>
+
+        <article class="tarjeta revelar ancho-completo" id="ranking">
+          <header class="tarjeta-cabecera">
+            <h2 class="heading-6">Ranking de entidades</h2>
+            <p class="caption-2">Entidades con 20 o más contratos, de mayor a menor porcentaje de contratos con alerta. Toca una fila para abrir su ficha.</p>
+          </header>
+          <div class="filtros">
+            <div class="campo">
+              <label class="title-4" for="f-depto">Departamento</label>
+              <select id="f-depto" disabled><option value="">Todo el país</option></select>
+            </div>
+          </div>
+          <div class="tabla-envoltura" id="t-ranking"><div class="cargando" style="--alto:320px"></div></div>
+          <div class="tabla-pie caption-5">
+            <span id="ranking-cuenta"></span>
+            <button type="button" class="boton-secundario button-sm" id="ranking-mas" hidden>Mostrar 20 más</button>
+          </div>
+        </article>
+      </div>
+    </div>
+  </main>
+
+  <div id="marco-pie"></div>
+</body>
+</html>

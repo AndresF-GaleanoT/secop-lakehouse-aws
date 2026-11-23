@@ -6,7 +6,6 @@
    sin librerías. Cada gráfica tiene su tabla equivalente y un tooltip que también responde al teclado. */
 
 const RUTA_DATOS = "data/";
-const ARCHIVOS = ["meta", "resumen", "anual", "mensual", "sectores", "departamentos", "entidades", "ley_diario", "ley_periodos"];
 const MIN_CONTRATOS_ANIO_CALOR = 10000;
 const RESTRICCION = { desde: "2026-01-31", hasta: "2026-06-21" };
 // Años con elección presidencial: la Ley de Garantías restringe la contratación directa cuatro meses antes.
@@ -218,7 +217,8 @@ function conTooltip(nodo, contenido) {
 /* ============================================================== Gráficas adaptables */
 const dibujos = [];
 
-// Dibuja de nuevo cuando cambia el ancho del contenedor o el tema del sistema.
+// Dibuja de una vez y otra vez cuando cambia el ancho del contenedor o el tema del sistema. El primer
+// dibujo no espera al ResizeObserver, que no avisa mientras la pestaña está en segundo plano.
 function registrar(contenedor, dibujar) {
   const correr = () => {
     const ancho = contenedor.clientWidth;
@@ -227,7 +227,8 @@ function registrar(contenedor, dibujar) {
     dibujar(ancho);
   };
   dibujos.push(correr);
-  let ancho = -1;
+  let ancho = Math.round(contenedor.getBoundingClientRect().width);
+  correr();
   new ResizeObserver(([entrada]) => {
     const w = Math.round(entrada.contentRect.width);
     if (w !== ancho) {
@@ -778,6 +779,17 @@ function configurarBuscador() {
 
   entrada.disabled = false;
   $("#s-buscador").textContent = `Escribe el nombre o el NIT. Hay ${entero(entidades.length)} entidades con contratos en SECOP II.`;
+
+  // Enlace directo a una ficha: entidades.html?nit=... (o ?q=... para dejar escrita una búsqueda).
+  const parametros = new URLSearchParams(location.search);
+  const nit = parametros.get("nit");
+  const consulta = parametros.get("q");
+  const elegida = nit && entidades.find((e) => e._nit === nit);
+  if (elegida) mostrarFicha(elegida);
+  else if (nit || consulta) {
+    entrada.value = nit || consulta;
+    pintar();
+  }
 }
 
 function miniCifra(tituloTexto, valor, nota) {
@@ -876,6 +888,14 @@ function mostrarFicha(e) {
   ficha.hidden = false;
   ficha.scrollIntoView({ behavior: reducirMovimiento.matches ? "auto" : "smooth", block: "start" });
   ficha.focus({ preventScroll: true });
+  // La dirección queda apuntando a esta ficha, para compartirla.
+  if (e._nit) history.replaceState(null, "", `?nit=${encodeURIComponent(e._nit)}`);
+  document.title = `${e._nombre} · Vigilancia SECOP`;
+}
+
+// Desde otras páginas (ranking, Ley de Garantías) se abre la ficha en la página de entidades.
+function irAFicha(e) {
+  location.href = e._nit ? `entidades.html?nit=${encodeURIComponent(e._nit)}` : `entidades.html?q=${encodeURIComponent(e._nombre)}`;
 }
 
 /* ---------------------------------------------- Ranking */
@@ -926,7 +946,7 @@ function dibujarRanking() {
     {},
     visibles.map((e) => {
       const tr = h("tr", {}, COLUMNAS_RANKING.map((c) => h("td", { class: c.num ? "n" : null, texto: c.formato(e) })));
-      activarFila(tr, () => mostrarFicha(e));
+      activarFila(tr, () => irAFicha(e));
       return tr;
     })
   );
@@ -1121,40 +1141,100 @@ function dibujarLey(diario, periodos) {
     { titulo: "Sin causal", num: true, formato: (e) => entero(e.ley_sin_excepcion_restriccion) },
     { titulo: "Con causal", num: true, formato: (e) => entero(e.ley_exceptuados_restriccion) },
     { titulo: "Mes antes, sin causal", num: true, formato: (e) => entero(e.ley_sin_excepcion_antes) },
-  ], top, mostrarFicha);
+  ], top, irAFicha);
 }
 
-/* ============================================================== Cifras generales */
+/* ============================================================== Cifras */
 function llenar(clave, valor) {
   document.querySelectorAll(`[data-dato="${clave}"]`).forEach((n) => {
     n.textContent = valor;
   });
 }
 
-function llenarCifras({ resumen, anual, meta }, totales) {
-  const ultimaFirma = fecha(resumen.ultima_fecha_firma);
-  llenar("contratos", entero(resumen.contratos));
-  llenar("ultima-firma", fechaCorta(ultimaFirma));
-  // El valor va en billones (10^12): la unidad pasa a la nota para que la cifra quepa en una línea.
-  llenar("valor", `$${nf1.format(totales.valor_total / 1e12)}`);
-  llenar("valor-nota", `billones de pesos desde 2015, sin contar ${entero(totales.contratos_valor_no_confiable)} valores imposibles`);
-  llenar("pct-alerta", pct((100 * totales.contratos_con_alerta) / totales.contratos));
-  llenar("pct-alerta-nota", `${entero(totales.contratos_con_alerta)} contratos activan al menos una de las 9 alertas`);
-  llenar("pct-directa", pct((100 * totales.contratos_contratacion_directa) / totales.contratos));
-  llenar("pct-directa-nota", `de los contratos, pero solo el ${pct((100 * sumar(anual, "valor_directa")) / sumar(anual, "valor_total"))} del valor`);
-  llenar("no-confiables", entero(totales.contratos_valor_no_confiable));
+const CLAVES_TOTALES = ["contratos", "valor_total", "contratos_con_alerta", "contratos_contratacion_directa", "contratos_valor_no_confiable", ...ALERTAS.map(([k]) => `contratos_${k}`)];
 
+function textoExportacion(meta) {
   const generado = new Date(meta.generado);
-  llenar("actualizado", fechaCorta(generado));
   const hora = generado.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" });
-  $("#meta-exportacion").textContent = `La última exportación fue el ${fechaCorta(generado)} a las ${hora}: Athena leyó ${nf1.format(meta.mb_escaneados_athena)} MB y tardó ${nf1.format(meta.segundos)} s.`;
-  return ultimaFirma;
+  return `La última exportación fue el ${fechaCorta(generado)} a las ${hora}: Athena leyó ${nf1.format(meta.mb_escaneados_athena)} MB y tardó ${nf1.format(meta.segundos)} s.`;
 }
 
-/* ============================================================== Navegación y movimiento */
-function configurarNav() {
+// Inicio: la cifra grande y el número clave de cada página.
+function llenarInicio({ meta, resumen, ley_periodos }, totales) {
+  llenar("contratos", entero(resumen.contratos));
+  llenar("ultima-firma", fechaCorta(fecha(resumen.ultima_fecha_firma)));
+  llenar("valor", `$${nf1.format(totales.valor_total / 1e12)} billones`);
+  llenar("pct-alerta", pct((100 * totales.contratos_con_alerta) / totales.contratos));
+  llenar("pct-directa", pct((100 * totales.contratos_contratacion_directa) / totales.contratos));
+  llenar("n-entidades", entero(meta.archivos?.entidades?.filas));
+  const p = Object.fromEntries(ley_periodos.map((r) => [r.periodo.slice(0, 1), r]));
+  const antes = p["1"]?.directa_sin_excepcion;
+  const previo = p["0"]?.directa_sin_excepcion;
+  llenar("ley-veces", previo ? `${nf1.format(antes / previo)} veces` : SD);
+}
+
+/* ============================================================== Menú y pie compartidos */
+const NAV = [
+  ["inicio", "index.html", "Inicio"],
+  ["panorama", "panorama.html", "Panorama"],
+  ["alertas", "alertas.html", "Alertas"],
+  ["entidades", "entidades.html", "Entidades"],
+  ["ley", "ley.html", "Ley de Garantías"],
+  ["como", "como-funciona.html", "Cómo funciona"],
+];
+
+function enlaceExterno(href, textoEnlace, rel = "noopener") {
+  return h("a", { href, rel }, textoEnlace);
+}
+
+// El menú y el pie se escriben una sola vez aquí y se insertan en cada página.
+function montarMarco(pagina) {
+  const enlace = ([clave, href, nombre], extra = {}) => h("a", { href, "aria-current": clave === pagina ? "page" : null, ...extra }, nombre);
+  const boton = h("button", { class: "nav-boton", type: "button", "aria-expanded": "false", "aria-controls": "menu-movil", "aria-label": "Abrir menú" }, h("span"), h("span"));
+  const nav = h(
+    "header",
+    { class: "nav-envoltura" },
+    h(
+      "nav",
+      { class: "nav", "aria-label": "Páginas" },
+      h("a", { class: "nav-marca title-4", href: "index.html", "aria-current": pagina === "inicio" ? "page" : null }, h("img", { class: "nav-logo", src: "favicon.svg", alt: "", width: 24, height: 24 }), "Vigilancia SECOP"),
+      h("ul", { class: "nav-enlaces title-4" }, NAV.slice(1).map((n) => h("li", {}, enlace(n)))),
+      boton
+    )
+  );
+  const menu = h("div", { class: "menu-movil", id: "menu-movil", "aria-hidden": "true" }, h("ul", { class: "heading-5" }, NAV.map((n, i) => h("li", { style: `--i:${i}` }, enlace(n, { tabindex: "-1" })))));
+  const pie = h(
+    "footer",
+    { class: "pie" },
+    h(
+      "div",
+      { class: "contenedor pie-rejilla" },
+      h(
+        "div",
+        { class: "pie-bloque" },
+        h("p", { class: "title-3", style: "color:var(--texto-1)", texto: "Sistema para la vigilancia ciudadana de la contratación pública en Colombia con datos de SECOP II" }),
+        h("p", { class: "body-6", texto: "Andrés Felipe Galeano Téllez · Oscar Esteban Arias López · Juan David Sandoval Bello · Yeikov Jared Ramos Sánchez" }),
+        h("p", { class: "body-6", texto: "Docentes: Zalma Valentina Moreno Galeano · Ivan Felipe Mariño Barreto · Julián David Pareja Garzón" }),
+        h("p", { class: "body-6", texto: "Proyecto integrador · Facultad de Ingeniería de Datos e Inteligencia Artificial · Universidad Santo Tomás, Tunja · Objetivos de Desarrollo Sostenible 16 y 9" })
+      ),
+      h(
+        "div",
+        { class: "pie-bloque" },
+        h("p", { class: "body-6" }, "Datos: ", enlaceExterno("https://www.datos.gov.co/d/jbjy-vk9h", "SECOP II, Contratos Electrónicos"), ", Colombia Compra Eficiente. Licencia ", enlaceExterno("https://creativecommons.org/licenses/by-sa/4.0/deed.es", "CC BY-SA 4.0", "noopener license"), ". Se limpiaron, se quitaron duplicados y se resumieron; se comparten con la misma licencia."),
+        h("p", { class: "body-6" }, "Código: ", enlaceExterno("https://github.com/AndresF-GaleanoT/secop-lakehouse-aws", "GitHub"), ", licencia ", enlaceExterno("https://www.gnu.org/licenses/agpl-3.0.html", "GNU AGPL 3.0", "noopener license"), "."),
+        h("p", { class: "body-6", texto: "Las alertas marcan patrones fuera de lo habitual para priorizar la revisión. No califican conductas." }),
+        h("p", { class: "body-6" }, "Datos actualizados el ", h("span", { "data-dato": "actualizado" }, "…"), ". Esta página no usa cookies ni herramientas de rastreo.")
+      )
+    )
+  );
+  $("#marco-nav")?.replaceWith(nav, menu);
+  $("#marco-pie")?.replaceWith(pie);
+}
+
+function configurarMenu() {
   const boton = $(".nav-boton");
   const panel = $("#menu-movil");
+  if (!boton || !panel) return;
   const enlacesPanel = [...panel.querySelectorAll("a")];
   const abrir = (si) => {
     boton.setAttribute("aria-expanded", String(si));
@@ -1173,25 +1253,10 @@ function configurarNav() {
       boton.focus();
     }
   });
-
-  // Marca en el menú la sección que se está leyendo.
-  const enlaces = [...document.querySelectorAll(".nav-enlaces a, .menu-movil a")];
-  const observador = new IntersectionObserver(
-    (entradas) => {
-      for (const en of entradas) {
-        if (!en.isIntersecting) continue;
-        enlaces.forEach((a) => {
-          if (a.getAttribute("href") === `#${en.target.id}`) a.setAttribute("aria-current", "true");
-          else a.removeAttribute("aria-current");
-        });
-      }
-    },
-    { rootMargin: "-45% 0px -50% 0px" }
-  );
-  ["panorama", "alertas", "ley", "como"].forEach((id) => observador.observe(document.getElementById(id)));
 }
 
-// Las secciones suben y aparecen al entrar en pantalla. El contenido nunca se queda oculto: lo que ya se
+/* ============================================================== Movimiento */
+// Las tarjetas suben y aparecen al entrar en pantalla. El contenido nunca se queda oculto: lo que ya se
 // ve al cargar aparece de una vez, y si el navegador no avisa intersecciones (pestaña en segundo plano,
 // navegador viejo) todo se muestra a los 2,5 s.
 function configurarRevelar() {
@@ -1223,9 +1288,10 @@ function configurarRevelar() {
   }, 2500);
 }
 
-// La frase grande se enciende palabra por palabra al cruzar una línea a 70 % de la pantalla.
+// La frase grande del inicio se enciende palabra por palabra al cruzar una línea a 70 % de la pantalla.
 function configurarFrase() {
   const p = $("#frase");
+  if (!p) return;
   const palabras = p.textContent.trim().split(/\s+/);
   p.replaceChildren(...palabras.flatMap((t, i) => (i < palabras.length - 1 ? [h("span", { class: "palabra", texto: t }), " "] : [h("span", { class: "palabra", texto: t })])));
   const nodos = [...p.querySelectorAll(".palabra")];
@@ -1252,7 +1318,7 @@ function configurarFrase() {
   actualizar();
 }
 
-/* ============================================================== Carga */
+/* ============================================================== Carga por página */
 async function cargar(nombre) {
   const r = await fetch(`${RUTA_DATOS}${nombre}.json`);
   if (!r.ok) throw new Error(`${nombre}.json respondió ${r.status}`);
@@ -1263,7 +1329,11 @@ async function cargar(nombre) {
 
 function mostrarError(error) {
   console.error(error);
-  const aviso = $("#error-general");
+  let aviso = $("#error-general");
+  if (!aviso) {
+    aviso = h("p", { id: "error-general", class: "error-datos body-6", role: "alert" });
+    $("main .contenedor")?.prepend(aviso);
+  }
   aviso.textContent = "No se pudieron cargar los datos. Recarga la página en unos minutos; si el problema sigue, la exportación semanal pudo fallar.";
   aviso.hidden = false;
   document.querySelectorAll(".cargando").forEach((n) => {
@@ -1281,45 +1351,84 @@ function seguro(nombre, fn) {
   }
 }
 
+// Qué archivos de data/ necesita cada página y qué dibuja con ellos.
+const PAGINAS = {
+  inicio: {
+    archivos: ["meta", "resumen", "departamentos", "ley_periodos"],
+    iniciar: (d, totales) => seguro("inicio", () => llenarInicio(d, totales)),
+  },
+  panorama: {
+    archivos: ["meta", "resumen", "anual", "mensual", "sectores"],
+    iniciar: (d) => {
+      const ultimaFirma = fecha(d.resumen.ultima_fecha_firma);
+      seguro("anual", () => dibujarAnual(d.anual, ultimaFirma));
+      seguro("calor", () => dibujarCalor(d.mensual, ultimaFirma));
+      seguro("directa", () => dibujarDirecta(d.anual));
+      seguro("sectores", () => dibujarSectores(d.sectores));
+    },
+  },
+  alertas: {
+    archivos: ["meta", "departamentos", "entidades"],
+    iniciar: (d, totales) => {
+      seguro("mapa", () => dibujarMapa(d.departamentos));
+      seguro("alertas", () => dibujarAlertasNacionales(totales));
+      seguro("ranking", () => configurarRanking(d.departamentos));
+    },
+  },
+  entidades: {
+    archivos: ["meta", "departamentos", "entidades"],
+    iniciar: () => seguro("buscador", configurarBuscador),
+  },
+  ley: {
+    archivos: ["meta", "ley_diario", "ley_periodos", "entidades"],
+    iniciar: (d) => seguro("ley", () => dibujarLey(d.ley_diario, d.ley_periodos)),
+  },
+  como: {
+    archivos: ["meta", "departamentos"],
+    iniciar: (d, totales) => {
+      llenar("no-confiables", entero(totales.contratos_valor_no_confiable));
+      $("#meta-exportacion").textContent = textoExportacion(d.meta);
+    },
+  },
+};
+
 async function iniciar() {
-  configurarNav();
+  const pagina = PAGINAS[document.body.dataset.pagina] ? document.body.dataset.pagina : "inicio";
+  montarMarco(pagina);
+  configurarMenu();
   configurarRevelar();
   configurarFrase();
 
+  const { archivos, iniciar: dibujarPagina } = PAGINAS[pagina];
   let d;
   try {
-    const valores = await Promise.all(ARCHIVOS.map(cargar));
-    d = Object.fromEntries(ARCHIVOS.map((n, i) => [n, valores[i]]));
+    const valores = await Promise.all(archivos.map(cargar));
+    d = Object.fromEntries(archivos.map((n, i) => [n, valores[i]]));
   } catch (error) {
     mostrarError(error);
     return;
   }
 
-  d.resumen = d.resumen[0];
-  const claves = ["contratos", "valor_total", "contratos_con_alerta", "contratos_valor_no_confiable", ...ALERTAS.map(([k]) => `contratos_${k}`)];
-  const totales = Object.fromEntries(claves.map((k) => [k, sumar(d.departamentos, k)]));
-  nacional = Object.fromEntries(ALERTAS.map(([k]) => [k, (100 * totales[`contratos_${k}`]) / totales.contratos]));
+  if (d.resumen) d.resumen = d.resumen[0];
+  llenar("actualizado", fechaCorta(new Date(d.meta.generado)));
 
-  entidades = d.entidades;
-  for (const e of entidades) {
-    // Algunos nombres traen caracteres de control de la fuente original.
-    e._nombre = e.nombre_entidad.replace(/[\u0080-\u009f]/g, " ").replace(/\s+/g, " ").trim();
-    e._n = normalizar(e._nombre);
-    e._nit = e.nit_entidad == null ? "" : String(e.nit_entidad);
+  let totales = {};
+  if (d.departamentos) {
+    totales = Object.fromEntries(CLAVES_TOTALES.map((k) => [k, sumar(d.departamentos, k)]));
+    nacional = Object.fromEntries(ALERTAS.map(([k]) => [k, (100 * totales[`contratos_${k}`]) / totales.contratos]));
   }
-  ranking = entidades.filter((e) => e.posicion_ranking != null);
+  if (d.entidades) {
+    entidades = d.entidades;
+    for (const e of entidades) {
+      // Algunos nombres traen caracteres de control de la fuente original.
+      e._nombre = e.nombre_entidad.replace(/[\u0080-\u009f]/g, " ").replace(/\s+/g, " ").trim();
+      e._n = normalizar(e._nombre);
+      e._nit = e.nit_entidad == null ? "" : String(e.nit_entidad);
+    }
+    ranking = entidades.filter((e) => e.posicion_ranking != null);
+  }
 
-  let ultimaFirma = new Date();
-  seguro("cifras", () => (ultimaFirma = llenarCifras(d, totales)));
-  seguro("anual", () => dibujarAnual(d.anual, ultimaFirma));
-  seguro("calor", () => dibujarCalor(d.mensual, ultimaFirma));
-  seguro("directa", () => dibujarDirecta(d.anual));
-  seguro("sectores", () => dibujarSectores(d.sectores));
-  seguro("mapa", () => dibujarMapa(d.departamentos));
-  seguro("alertas", () => dibujarAlertasNacionales(totales));
-  seguro("buscador", configurarBuscador);
-  seguro("ranking", () => configurarRanking(d.departamentos));
-  seguro("ley", () => dibujarLey(d.ley_diario, d.ley_periodos));
+  dibujarPagina(d, totales);
 }
 
 iniciar();

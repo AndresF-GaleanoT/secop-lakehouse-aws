@@ -1,0 +1,55 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fichas de entidades públicas · Vigilancia SECOP</title>
+  <meta name="description" content="Busca una entidad pública de Colombia por nombre o NIT y mira sus contratos, sus alertas frente al promedio nacional y su contratación directa en la Ley de Garantías.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Fichas de entidades públicas · Vigilancia SECOP">
+  <meta property="og:description" content="Busca una entidad pública de Colombia por nombre o NIT y mira sus contratos, sus alertas frente al promedio nacional y su contratación directa en la Ley de Garantías.">
+  <meta property="og:locale" content="es_CO">
+  <meta name="theme-color" content="#004aad">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="estilos.css">
+  <script>document.documentElement.classList.add("js");</script>
+  <script src="app.js" defer></script>
+</head>
+<body data-pagina="entidades">
+  <a class="saltar button-sm" href="#contenido">Saltar al contenido</a>
+  <div id="marco-nav"></div>
+
+  <main id="contenido" class="pagina">
+    <div class="contenedor">
+      <header class="pagina-cabecera revelar">
+        <span class="insignia" aria-hidden="true">03</span>
+        <div>
+          <h1 class="heading-2">Fichas de entidades</h1>
+          <p class="body-3">Busca una entidad por nombre o NIT y mira sus contratos, sus alertas frente al promedio nacional y su contratación directa alrededor de la Ley de Garantías. Cada ficha tiene su propio enlace para compartir.</p>
+        </div>
+      </header>
+
+      <article class="tarjeta revelar" id="buscador">
+        <header class="tarjeta-cabecera">
+          <h2 class="heading-6">Busca una entidad</h2>
+          <p class="caption-2" id="s-buscador">Escribe el nombre o el NIT de la entidad.</p>
+        </header>
+        <div class="campo">
+          <label class="title-4" for="q">Nombre o NIT</label>
+          <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Por ejemplo: Tunja o INPEC" aria-describedby="ayuda-q" aria-controls="resultados" disabled>
+          <p class="caption-5 texto-3" id="ayuda-q">Escribe al menos 3 letras. Enter abre el primer resultado.</p>
+        </div>
+        <ul class="resultados" id="resultados" aria-label="Resultados"></ul>
+        <div class="sugerencias" id="sugerencias"></div>
+        <div id="ficha" class="ficha" hidden tabindex="-1" style="margin-top:var(--e-400)"></div>
+      </article>
+    </div>
+  </main>
+
+  <div id="marco-pie"></div>
+</body>
+</html>

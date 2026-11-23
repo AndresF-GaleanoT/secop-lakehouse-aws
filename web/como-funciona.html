@@ -1,0 +1,86 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cómo funciona · Vigilancia SECOP</title>
+  <meta name="description" content="La cadena sin servidores en AWS que descarga, limpia y resume cada semana los contratos de SECOP II y publica esta web desde S3.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Cómo funciona · Vigilancia SECOP">
+  <meta property="og:description" content="La cadena sin servidores en AWS que descarga, limpia y resume cada semana los contratos de SECOP II y publica esta web desde S3.">
+  <meta property="og:locale" content="es_CO">
+  <meta name="theme-color" content="#004aad">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="estilos.css">
+  <script>document.documentElement.classList.add("js");</script>
+  <script src="app.js" defer></script>
+</head>
+<body data-pagina="como">
+  <a class="saltar button-sm" href="#contenido">Saltar al contenido</a>
+  <div id="marco-nav"></div>
+
+  <main id="contenido" class="pagina">
+    <div class="contenedor">
+      <header class="pagina-cabecera revelar">
+        <span class="insignia" aria-hidden="true">05</span>
+        <div>
+          <h1 class="heading-2">Cómo funciona</h1>
+          <p class="body-3">Una cadena sin servidores en AWS descarga, limpia y resume los contratos cada semana. Esta web lee el resultado directamente de Amazon S3.</p>
+        </div>
+      </header>
+
+      <div class="rejilla">
+        <article class="tarjeta revelar">
+          <ol class="pasos">
+            <li class="paso">
+              <h2 class="title-3">Descarga</h2>
+              <p class="body-6">Una función <span class="servicio">Lambda</span> trae de datos.gov.co los contratos de los últimos 17 días con 4 hilos en paralelo y los guarda en <span class="servicio">S3</span> (capa bronce).</p>
+            </li>
+            <li class="paso">
+              <h2 class="title-3">Limpieza</h2>
+              <p class="body-6">Un job de <span class="servicio">Glue</span> con Spark tipa los datos, quita duplicados y deja 16 columnas en tablas Iceberg (capa plata).</p>
+            </li>
+            <li class="paso">
+              <h2 class="title-3">Resumen</h2>
+              <p class="body-6">Otro job de <span class="servicio">Glue</span> calcula las alertas, los rankings y la Ley de Garantías (capa oro).</p>
+            </li>
+            <li class="paso">
+              <h2 class="title-3">Exportación</h2>
+              <p class="body-6">Una función <span class="servicio">Lambda</span> consulta la capa oro con <span class="servicio">Athena</span> y guarda archivos JSON en <span class="servicio">S3</span>.</p>
+            </li>
+            <li class="paso">
+              <h2 class="title-3">Publicación</h2>
+              <p class="body-6"><span class="servicio">CloudFront</span> entrega esta web y esos JSON. Las visitas no consultan la base de datos, así que el costo no sube con el tráfico.</p>
+            </li>
+          </ol>
+          <p class="nota caption-2">Step Functions encadena los pasos y EventBridge Scheduler los inicia cada lunes a las 6:00 a. m., hora de Colombia. <span id="meta-exportacion"></span></p>
+        </article>
+
+        <div class="cifras">
+          <article class="tarjeta cifra-tarjeta revelar">
+            <h2 class="title-4">Costo por actualización</h2>
+            <p class="cifra">US$0,07</p>
+            <p class="caption-5">medido en la carga automática; una por semana son unos US$0,30 al mes, con freno a los US$15</p>
+          </article>
+          <article class="tarjeta cifra-tarjeta revelar">
+            <h2 class="title-4">Descarga en paralelo</h2>
+            <p class="cifra">1,86×</p>
+            <p class="caption-5">más rápida con 4 hilos por Lambda: la carga completa bajó de 44,5 a 24 minutos</p>
+          </article>
+          <article class="tarjeta cifra-tarjeta revelar">
+            <h2 class="title-4">Valores imposibles</h2>
+            <p class="cifra" data-dato="no-confiables">&nbsp;</p>
+            <p class="caption-5">contratos de más de un billón de pesos quedan fuera de las sumas por ser errores de digitación</p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="marco-pie"></div>
+</body>
+</html>

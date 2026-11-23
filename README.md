@@ -210,6 +210,19 @@ así que el costo no crece con el tráfico. Cada lunes, el último paso del pipe
 Lambda `secop-web-export`, que hace 8 consultas sobre oro (≈ 6 MB escaneados, menos de 20 s) y deja los
 JSON en `data/`. CloudFront y el navegador los guardan 15 minutos.
 
+La web tiene una página por tema y cada una descarga solo los JSON que usa:
+
+| Página | Contenido | Datos |
+|---|---|---|
+| `index.html` | Inicio: cifra total y una tarjeta por página | `meta`, `resumen`, `departamentos`, `ley_periodos` |
+| `panorama.html` | Contratos por año, calendario de meses, contratación directa y sectores | `resumen`, `anual`, `mensual`, `sectores` |
+| `alertas.html` | Mapa por departamento, frecuencia de cada alerta y ranking de entidades | `departamentos`, `entidades` |
+| `entidades.html` | Buscador y ficha de cada entidad; `entidades.html?nit=<NIT>` abre una ficha directamente | `departamentos`, `entidades` |
+| `ley.html` | Ley de Garantías 2026: cifras, contratos directos por semana y entidades | `ley_diario`, `ley_periodos`, `entidades` |
+| `como-funciona.html` | La cadena en AWS, costos y la última exportación | `departamentos` |
+
+El menú y el pie se escriben una sola vez en `web/app.js` (`montarMarco`) y se insertan en todas las páginas.
+
 | Recurso | Configuración |
 |---|---|
 | Bucket `secop-web-<CUENTA>` | Privado (bloqueo de acceso público completo), SSE-S3. Política: solo `s3:GetObject` para el servicio CloudFront con `AWS:SourceArn` de la distribución |

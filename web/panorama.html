@@ -1,0 +1,80 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panorama de la contratación · Vigilancia SECOP</title>
+  <meta name="description" content="Cuánto contrata el Estado colombiano, en qué meses y cuánto adjudica sin competencia, con datos de SECOP II desde 2015.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Panorama de la contratación · Vigilancia SECOP">
+  <meta property="og:description" content="Cuánto contrata el Estado colombiano, en qué meses y cuánto adjudica sin competencia, con datos de SECOP II desde 2015.">
+  <meta property="og:locale" content="es_CO">
+  <meta name="theme-color" content="#004aad">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="estilos.css">
+  <script>document.documentElement.classList.add("js");</script>
+  <script src="app.js" defer></script>
+</head>
+<body data-pagina="panorama">
+  <a class="saltar button-sm" href="#contenido">Saltar al contenido</a>
+  <div id="marco-nav"></div>
+
+  <main id="contenido" class="pagina">
+    <div class="contenedor">
+      <header class="pagina-cabecera revelar">
+        <span class="insignia" aria-hidden="true">01</span>
+        <div>
+          <h1 class="heading-2">Panorama de la contratación</h1>
+          <p class="body-3">Cuánto contrata el Estado, en qué meses lo hace y cuánto se adjudica sin competencia.</p>
+        </div>
+      </header>
+
+      <div class="rejilla rejilla-2">
+        <article class="tarjeta revelar ancho-completo">
+          <header class="tarjeta-cabecera">
+            <h2 class="heading-6">Contratos firmados por año</h2>
+            <p class="caption-2">Cada barra es un año según la fecha de firma.</p>
+          </header>
+          <div class="lienzo cargando" id="g-anual" style="--alto:280px"></div>
+          <p class="nota caption-5" id="n-anual"></p>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-anual"></div></details>
+        </article>
+
+        <article class="tarjeta revelar ancho-completo">
+          <header class="tarjeta-cabecera">
+            <h2 class="heading-6">Mes a mes: cuándo se firma</h2>
+            <p class="caption-2" id="s-calor">Parte de los contratos de cada año que se firma en cada mes.</p>
+          </header>
+          <div class="lienzo cargando" id="g-calor" style="--alto:320px"></div>
+          <p class="nota caption-5" id="n-calor"></p>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-calor"></div></details>
+        </article>
+
+        <article class="tarjeta revelar">
+          <header class="tarjeta-cabecera">
+            <h2 class="heading-6">Contratación directa: muchos contratos, menos valor</h2>
+            <p class="caption-2">Parte de los contratos y del valor que se adjudica sin competencia.</p>
+          </header>
+          <div class="lienzo cargando" id="g-directa" style="--alto:160px"></div>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-directa"></div></details>
+        </article>
+
+        <article class="tarjeta revelar">
+          <header class="tarjeta-cabecera">
+            <h2 class="heading-6">Sectores con más valor contratado</h2>
+            <p class="caption-2">Los diez sectores con mayor valor desde 2015.</p>
+          </header>
+          <div class="lienzo cargando" id="g-sectores" style="--alto:360px"></div>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-sectores"></div></details>
+        </article>
+      </div>
+    </div>
+  </main>
+
+  <div id="marco-pie"></div>
+</body>
+</html>
