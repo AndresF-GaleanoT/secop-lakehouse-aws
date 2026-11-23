@@ -1,0 +1,10 @@
+,valor
+entidades_gold,5121.0
+entidades_min_contratos,2604.0
+entidades_modelo,2603.0
+k_elegido,4.0
+silhouette_final,0.21314556974273527
+davies_bouldin_final,1.7302349765178973
+ari_medio_10_semillas,0.9991492727328453
+ari_min_10_semillas,0.9982985454656906
+varianza_pca_2d,0.3781057173458905

@@ -1,0 +1,54 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ConsultarAthena",
+      "Effect": "Allow",
+      "Action": [
+        "athena:StartQueryExecution",
+        "athena:GetQueryExecution",
+        "athena:GetQueryResults",
+        "athena:StopQueryExecution",
+        "athena:GetWorkGroup"
+      ],
+      "Resource": "arn:aws:athena:us-east-1:811136731365:workgroup/secop"
+    },
+    {
+      "Sid": "LeerCatalogo",
+      "Effect": "Allow",
+      "Action": ["glue:GetDatabase", "glue:GetTable", "glue:GetTables", "glue:GetPartitions"],
+      "Resource": [
+        "arn:aws:glue:us-east-1:811136731365:catalog",
+        "arn:aws:glue:us-east-1:811136731365:database/secop_lakehouse_db",
+        "arn:aws:glue:us-east-1:811136731365:table/secop_lakehouse_db/*"
+      ]
+    },
+    {
+      "Sid": "LeerPlataYOro",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": [
+        "arn:aws:s3:::secop-lake-811136731365/silver/*",
+        "arn:aws:s3:::secop-lake-811136731365/gold/*"
+      ]
+    },
+    {
+      "Sid": "ResultadosAthena",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:AbortMultipartUpload", "s3:ListMultipartUploadParts"],
+      "Resource": "arn:aws:s3:::secop-lake-811136731365/athena-results/*"
+    },
+    {
+      "Sid": "ListarLago",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetBucketLocation"],
+      "Resource": "arn:aws:s3:::secop-lake-811136731365"
+    },
+    {
+      "Sid": "EscribirDatosWeb",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::secop-web-811136731365/data/*"
+    }
+  ]
+}

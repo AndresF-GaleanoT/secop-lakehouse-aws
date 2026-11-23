@@ -1,0 +1,43 @@
+{
+  "Comment": "Descarga todo el histórico de SECOP II a la capa bronce: una invocación de la Lambda por mes (3 en paralelo) + los contratos sin fecha de firma. No ejecuta Glue. Entrada: la que genera scripts/backfill.py --dry-run",
+  "StartAt": "DescargarTramos",
+  "States": {
+    "DescargarTramos": {
+      "Type": "Map",
+      "ItemsPath": "$.windows",
+      "MaxConcurrency": 3,
+      "ItemProcessor": {
+        "ProcessorConfig": { "Mode": "INLINE" },
+        "StartAt": "InvocarLambda",
+        "States": {
+          "InvocarLambda": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName": "secop-ingest",
+              "Payload.$": "$"
+            },
+            "ResultSelector": {
+              "load_id.$": "$.Payload.load_id",
+              "records.$": "$.Payload.records"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": ["States.ALL"],
+                "IntervalSeconds": 30,
+                "MaxAttempts": 3,
+                "BackoffRate": 2
+              }
+            ],
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.resultado",
+      "Next": "Terminado"
+    },
+    "Terminado": {
+      "Type": "Succeed"
+    }
+  }
+}

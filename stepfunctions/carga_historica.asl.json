@@ -1,0 +1,76 @@
+{
+  "Comment": "Carga histórica de SECOP II: Lambda por cada mes (en paralelo) -> un solo bronze_to_silver -> silver_to_gold. La entrada la arma scripts/backfill.py (o a mano): {\"windows\": [{\"start_date\": ..., \"end_date\": ...}, ..., {\"missing_dates\": true}]} Si un estado falla, la ejecución queda en Failed y el detalle se ve en la consola de Step Functions.",
+  "StartAt": "IngestWindows",
+  "States": {
+    "IngestWindows": {
+      "Type": "Map",
+      "ItemsPath": "$.windows",
+      "MaxConcurrency": 3,
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "IngestWindow",
+        "States": {
+          "IngestWindow": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName": "<ARN_LAMBDA_INGESTA>",
+              "Payload.$": "$"
+            },
+            "ResultSelector": {
+              "load_id.$": "$.Payload.load_id",
+              "records.$": "$.Payload.records"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "States.ALL"
+                ],
+                "IntervalSeconds": 30,
+                "MaxAttempts": 3,
+                "BackoffRate": 2
+              }
+            ],
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.ingested",
+      "Next": "BronzeToSilver"
+    },
+    "BronzeToSilver": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Comment": "Un solo job sobre todo bronze: más barato que uno por mes.",
+      "Parameters": {
+        "JobName": "<NOMBRE_JOB_GLUE_BRONZE_TO_SILVER>",
+        "NumberOfWorkers": 10,
+        "WorkerType": "G.1X",
+        "Timeout": 180,
+        "Arguments": {
+          "--SOURCE_PATH": "s3://<BUCKET_LAKE>/bronze/secop_contratos/",
+          "--LOAD_ID": "historica"
+        }
+      },
+      "ResultPath": "$.bronze_to_silver",
+      "Next": "SilverToGold"
+    },
+    "SilverToGold": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Parameters": {
+        "JobName": "<NOMBRE_JOB_GLUE_SILVER_TO_GOLD>",
+        "NumberOfWorkers": 10,
+        "WorkerType": "G.1X",
+        "Timeout": 120
+      },
+      "ResultPath": "$.silver_to_gold",
+      "Next": "Done"
+    },
+    "Done": {
+      "Type": "Succeed"
+    }
+  }
+}

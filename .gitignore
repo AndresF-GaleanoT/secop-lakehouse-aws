@@ -1,0 +1,25 @@
+__pycache__/
+*.pyc
+.env
+
+# Terraform
+terraform/.terraform/
+terraform/build/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/terraform.tfvars
+
+# Web: datos generados por la Lambda secop-web-export
+web/data/
+
+# LaTeX: archivos intermedios (se regeneran al compilar)
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Entregas anteriores: se guardan en el disco, no en el repositorio
+entrega/

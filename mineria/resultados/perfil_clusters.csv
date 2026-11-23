@@ -1,0 +1,5 @@
+cluster,entidades,contratos,mediana_contratos,pct_con_alerta,pct_contratacion_directa,pct_fin_de_semana,pct_inicio_antes_de_firma,pct_valor_atipico,pct_posible_fraccionamiento,pct_adiciones_altas,pct_contratista_no_identificado,pct_valor_mayor_contratista
+1,541,381547,148.0,13.5,1.6,4.9,0.3,3.1,1.8,0.5,0.1,24.6
+2,304,292296,185.5,55.8,28.3,3.1,29.0,3.5,0.6,0.4,0.3,24.3
+3,365,590427,435.0,58.9,33.2,2.9,4.8,21.1,1.2,2.4,2.1,29.3
+4,1393,4426496,625.0,83.7,80.6,3.6,0.8,2.6,0.4,1.0,0.1,17.8

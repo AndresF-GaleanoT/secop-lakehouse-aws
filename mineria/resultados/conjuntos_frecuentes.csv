@@ -1,0 +1,22 @@
+conjunto,tamano,soporte_pct,contratos
+directa,1,77.5699,4423244
+fin_semana,1,5.8271,332279
+valor_atípico,1,4.1641,237446
+inicio<firma,1,3.683,210013
+adiciones_altas,1,1.2305,70168
+fraccionamiento,1,0.6847,39043
+no_identificado,1,0.2844,16220
+concentración,1,0.1173,6690
+directa + fin_semana,2,4.3828,249920
+directa + inicio<firma,2,2.1219,120997
+directa + valor_atípico,2,1.844,105150
+directa + adiciones_altas,2,0.301,17161
+directa + fraccionamiento,2,0.2695,15366
+inicio<firma + valor_atípico,2,0.205,11687
+fin_semana + inicio<firma,2,0.1944,11088
+fin_semana + valor_atípico,2,0.1819,10371
+fin_semana + adiciones_altas,2,0.1727,9846
+valor_atípico + no_identificado,2,0.1257,7170
+valor_atípico + adiciones_altas,2,0.1096,6251
+inicio<firma + adiciones_altas,2,0.1068,6089
+directa + fin_semana + inicio<firma,3,0.1066,6078

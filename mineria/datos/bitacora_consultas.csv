@@ -1,0 +1,10 @@
+fecha_utc,consulta,query_id,mb_escaneados,segundos_motor,filas
+2026-11-14T01:44:48+00:00,01_calidad_plata,f2658b63-b6d8-49a7-a242-a85f17dd3ee9,117.8,4.3,1
+2026-11-14T01:45:55+00:00,02_outliers_por_tipo,dd5034b3-e777-476b-ba27-ee73d65fe59c,21.8,64.4,24
+2026-11-14T01:46:07+00:00,03_muestra_plata,857aa1cc-ad4d-40e2-9110-269dabe3a8ab,92.8,1.4,51570
+2026-11-14T01:46:14+00:00,04_panorama_mensual,83ed24c0-36d4-4fe2-a002-903ea35d75f2,0.8,1.2,136
+2026-11-14T01:46:17+00:00,05_panorama_departamento,e94d6902-dd54-487f-8d3f-8c6251f8bc56,0.9,0.7,34
+2026-11-14T01:46:21+00:00,06_panorama_modalidad_sector,45e0a73e-ec40-4a6f-bc96-ae781c8716a6,1.7,0.7,41
+2026-11-14T01:46:25+00:00,07_riesgo_entidades,4e4118b7-55e0-4281-84de-b64a785787d5,0.2,0.7,5121
+2026-11-14T01:46:31+00:00,08_combinaciones_alertas,38cb7206-173f-44ad-b9e5-7bce3d316487,1.0,1.4,129
+2026-11-14T01:46:38+00:00,09_riesgo_departamentos,0cb588a2-6ae5-444e-a0e6-cb16f809eceb,0.0,0.6,34

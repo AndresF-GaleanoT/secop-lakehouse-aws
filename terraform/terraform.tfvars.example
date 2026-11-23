@@ -1,0 +1,13 @@
+# Copia este archivo como terraform.tfvars y completa los valores.
+# terraform.tfvars NO se sube a ningún repositorio (está en .gitignore).
+# El token de datos.gov.co va aparte, como variable de entorno:
+#   PowerShell:  $env:TF_VAR_socrata_app_token = "<tu token>"
+#   Bash:        export TF_VAR_socrata_app_token="<tu token>"
+
+budget_emails = ["<tu-correo@ejemplo.com>"]
+
+# Opcionales (ya tienen valor por defecto):
+# region           = "us-east-1"
+# parallel_pages   = 4
+# lookback_days    = 10
+# budget_limit_usd = 15

@@ -1,0 +1,253 @@
+\noindent\textbf{Resumen.} Esta parte cubre cómo se obtienen y se limpian los contratos. Una función AWS Lambda, coordinada por Step Functions, baja el histórico en 284 ventanas de tiempo con cuatro hilos y deja las respuestas tal como llegan en la capa \emph{bronce} de S3. Después, AWS Glue con Spark produce la capa \emph{plata}, con los datos limpios, y la capa \emph{oro}, con seis tablas y nueve indicadores. Se obtuvieron 5.690.495 registros sin perder ninguna ventana, quedaron 5.687.110 contratos únicos y el procesamiento costó US\$0,76.
+
+\subsection{Introducción}
+
+\subsubsection{Problema}
+
+Los contratos de SECOP~II se consultan por la API SODA~\cite{ancp_secop,tyler_soda}, y bajarlos completos tropezó con cinco dificultades:
+
+\begin{enumerate}
+\item El volumen crece rápido: 22.224 contratos firmados en 2017 y 1.017.075 en 2025 (Tabla~\ref{adq:t1}).
+\item Cada contrato trae 91 campos, todos como texto, y algunos contienen datos personales.
+\item Un contrato tarda varios días en aparecer en la API después de firmado.
+\item La API a veces corta la conexión sin enviar respuesta.
+\item Una página de 50.000 registros no cupo en el 1~GB de memoria de la función.
+\end{enumerate}
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Contratos firmados cada año según la API (consulta del 3 nov. 2026)}\label{adq:t1}
+\begin{tabular}{lrlr}
+\toprule
+Año & Firmados & Año & Firmados \\
+\midrule
+2015 & 10 & 2021 & 560.441 \\
+2016 & 1.340 & 2022 & 707.765 \\
+2017 & 22.224 & 2023 & 835.462 \\
+2018 & 142.586 & 2024 & 881.978 \\
+2019 & 142.090 & 2025 & 1.017.075 \\
+2020 & 356.623 & 2026* & 944.992 \\
+Sin fecha de firma &  &  & 66.451 \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+{\footnotesize * Hasta el 2 de noviembre de 2026.}
+\end{table}
+
+Los objetivos están en la Sección~\ref{sec:intro}. A esta materia le corresponden la descarga, la limpieza y las tablas de análisis.
+
+\subsection{Metodología}
+
+\subsubsection{Arquitectura}
+
+La Tabla~\ref{adq:tarq} ubica cada componente en las etapas de un sistema de adquisición. Primero se guarda lo que entrega la fuente y luego se transforma (ELT), sobre un \emph{lakehouse}~\cite{armbrust2021} organizado en capas Medallion~\cite{databricks_medallion} con tablas Apache Iceberg~\cite{asf_iceberg_spec}.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Etapas de la cadena de adquisición}\label{adq:tarq}
+\footnotesize
+\begin{tabularx}{\columnwidth}{@{}>{\raggedright\arraybackslash}p{0.27\columnwidth}LL@{}}
+\toprule
+Etapa & Componente & Función \\
+\midrule
+Fuente & API SODA (\code{jbjy-vk9h}) & ``Sensor'': 91 campos de texto \\
+Sincronización & Step Functions (Map) & 284 ventanas, 3 en paralelo \\
+Acondicionamiento & Lambda \code{secop-ingest} & 4 hilos, reintentos, gzip \\
+Carga (crudo) & S3, capa bronce & JSON Lines + gzip, 2,3 GB \\
+Preprocesamiento & Glue (Spark) & Limpiar, tipar, deduplicar \\
+Datos limpios & Iceberg, capa plata & 16 columnas, 5,69 M filas \\
+Agregación & Glue (Spark) & Indicadores \\
+Datos analíticos & Iceberg, capa oro & 6 tablas, 9 indicadores \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{Descarga}
+
+Cada página se pide con un \code{GET} en SoQL. El filtro \code{\$where} limita la consulta a la ventana, \code{\$order=:id} mantiene el mismo orden entre páginas para no saltar ni repetir registros, y \code{\$limit} y \code{\$offset} indican qué página traer.
+
+Las páginas son de 10.000 registros, porque con 50.000 la Lambda se quedaba sin memoria, y cada una se escribe comprimida en bronce en cuanto llega. Las ventanas son meses, salvo cinco meses de más de 100.000 contratos que se bajan día por día para no pasar los 15 minutos que dura como máximo una Lambda. Step Functions corre tres ventanas al mismo tiempo~\cite{aws_sfn_map}.
+
+Cada ventana escribe siempre en la misma carpeta, de modo que repetirla reemplaza los archivos en lugar de duplicarlos. Dentro de la Lambda trabajan cuatro hilos. Un error de red se reintenta cuatro veces, esperando cada vez el doble, y si la ventana completa falla, Step Functions la lanza hasta tres veces más.
+
+\subsubsection{Limpieza (capa plata)}
+
+Glue 5.0 con Spark 3.5~\cite{aws_glue_guide} se queda con 16 de los 91 campos y les aplica las reglas de la Tabla~\ref{adq:t2}. Los datos personales se quedan en bronce~\cite{ley1581}. El resultado entra con \code{MERGE INTO} a una tabla Iceberg dividida por mes de firma.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Reglas de limpieza de la capa plata}\label{adq:t2}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{0.22\linewidth}X}
+\toprule
+Campo & Regla \\
+\midrule
+Texto & Recortar espacios; vacíos a nulo; mayúsculas en categorías. \\
+NIT del proveedor & Solo dígitos (\code{900.868.231-5} $\rightarrow$ \code{9008682315}). \\
+Código UNSPSC & Sin prefijo de versión (\code{V1.90141701} $\rightarrow$ \code{90141701}). \\
+Fechas y montos & Texto $\rightarrow$ \code{date} y \code{decimal(20,2)}. \\
+Duplicados & Una fila por \code{id\_contrato}. \\
+Valor imposible & Más de $10^{12}$ COP: se marca \code{valor\_confiable = false} y no entra en las sumas. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{Tablas de análisis (capa oro)}
+
+Otro trabajo de Glue escribe las seis tablas de la Tabla~\ref{adq:t3}. Varios indicadores dependen de límites legales: por ejemplo, el anticipo no puede pasar del 50~\% del valor~\cite{ley80}. Las tablas de la Ley de Garantías distinguen los contratos que caben en alguna excepción~\cite{ley996}.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Las seis tablas de la capa oro y la pregunta que responde cada una}\label{adq:t3}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{0.22\linewidth}XX}
+\toprule
+Objetivo & Tabla & Contenido \\
+\midrule
+1. Panorama & \code{gold\_panorama\_contratacion} & Cuántos contratos y cuánto dinero hubo en cada periodo, territorio, sector y modalidad. \\
+2. Patrones irregulares & \code{gold\_alertas\_contratos} & Nueve indicadores y un puntaje por contrato. \\
+ & \code{gold\_riesgo\_entidades} & \emph{Ranking} de entidades. \\
+ & \code{gold\_riesgo\_departamentos} & \emph{Ranking} de departamentos. \\
+3. Ley de Garantías & \code{gold\_ley\_garantias\_diario} & Contratos diarios por periodo. \\
+ & \code{gold\_ley\_garantias\_entidades} & Contratos directos por entidad, con o sin excepción. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{Protocolo del conjunto de datos}
+
+La captura se hizo el 11 de noviembre de 2026 en dos corridas: 74 ventanas con un hilo y 210 con cuatro. Los datos se dividen por mes de firma; si más adelante se entrena un modelo, entrenamiento y prueba deben separarse por fecha. Bronce guarda una versión por carga y plata conserva sus versiones anteriores como \emph{snapshots} de Iceberg. Gracias a eso, tres columnas nuevas se llenaron reprocesando bronce, sin consultar otra vez la API.
+
+\subsection{Resultados}
+
+\subsubsection{Descarga}
+
+Las 284 ventanas terminaron bien (Tabla~\ref{adq:t4}). Bronce quedó con 5.690.495 registros en 732 archivos que pesan 2,3~GB. Con un hilo, una Lambda bajaba unos 280 registros por segundo y con cuatro, unos 1.700; como se midieron en meses distintos, la comparación es solo orientativa.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Ejecuciones de adquisición}\label{adq:t4}
+\begin{tabular}{lrr}
+\toprule
+ & Secuencial & Paralela \\
+\midrule
+Periodo & 06/2015 a 07/2021 & 08/2021 a 11/2026 \\
+Ventanas & 74 & 210 \\
+Hilos por función & 1 & 4 \\
+Registros & 1.014.936 & 4.672.446 \\
+Ventanas fallidas & 0 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Procesamiento y costo}
+
+Al limpiar se eliminaron 3.113 filas de una carga de prueba y 272 contratos repetidos, y plata quedó con 5.687.110 contratos. Pesa unas 22 veces menos que bronce. Glue costó US\$0,76 sumando todas las corridas (Tabla~\ref{adq:t5}), y Lambda y Step Functions no pasaron de la capa gratuita.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Ejecuciones en AWS Glue 5.0 (modo Flex; costos redondeados)}\label{adq:t5}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Ejecución & Workers & Tiempo & Costo \\
+\midrule
+Plata, prueba (sep. 2026) & 2 & 208 s & US\$0,02 \\
+Plata, completa & 10 & 199 s & US\$0,12 \\
+Plata, reproceso y regla de valor & 10 & 188 a 240 s & US\$0,22 \\
+Oro, cuatro versiones & 5 & 162 a 250 s & US\$0,28 \\
+Ejecuciones detenidas (3) &  &  & US\$0,13 \\
+\textbf{Total} &  &  & \textbf{US\$0,76} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Calidad de los datos}
+
+Ningún contrato tiene identificador nulo o repetido (Tabla~\ref{adq:t6}). Algunos valores, en cambio, son errores de digitación de hasta 4,4$\times 10^{17}$ COP, y por ellos el total aparecía como 7,3$\times 10^{17}$ COP. La regla de valor marca esos 85 contratos (0,0015~\%) y los deja en la tabla. Sin sus valores, lo contratado entre 2015 y 2026 suma 859,1 billones de COP.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Calidad de la capa plata (5.687.110 registros)}\label{adq:t6}
+\begin{tabular}{lr}
+\toprule
+Regla & Incumplimientos \\
+\midrule
+Identificador nulo o duplicado (crítica) & 0 \\
+NIT de la entidad o departamento nulo & 0 \\
+Fecha de firma nula & 67.098 \\
+Proveedor no identificado & 16.154 \\
+Termina antes de empezar & 644 \\
+Valor imposible ($> 10^{12}$ COP, marcado) & 85 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Indicadores de patrones irregulares}
+
+De los 5.687.110 contratos, 4.757.522 activan al menos un indicador (Tabla~\ref{adq:t7}). Casi todos lo hacen solo por ser adjudicaciones directas, así que un indicador aislado dice poco y el \emph{ranking} los combina.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Contratos que activan cada indicador}\label{adq:t7}
+\begin{tabular}{lr}
+\toprule
+Indicador & Contratos \\
+\midrule
+Adjudicación directa & 4.411.893 \\
+Firmado en fin de semana & 331.186 \\
+Valor atípico para su tipo & 236.328 \\
+Empezó antes de firmarse & 210.009 \\
+Plazo ampliado más de la mitad & 70.157 \\
+Posible fraccionamiento & 38.746 \\
+Proveedor no identificado & 16.154 \\
+Concentración de proveedores & 6.698 \\
+Anticipo mayor al 50~\% del valor & 160 \\
+\textbf{Al menos uno} & \textbf{4.757.522} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Ley de Garantías 2026}
+
+En el mes previo a la restricción se firmaron 422.012 contratos directos sin excepción, unas cuatro veces los del mismo mes de 2025 (Tabla~\ref{adq:t8}). Durante la restricción se firmaron 4.690 sin una excepción visible en los datos. SECOP~II no registra la excepción como tal; se deduce de la justificación y del sector, y por eso estos contratos quedan como casos para revisar.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Contratación directa antes, durante y después de la restricción de 2026 (entre paréntesis, billones de COP)}\label{adq:t8}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Momento & Sin excepción & Con excepción \\
+\midrule
+Igual periodo de 2025 & 104.813 (8,07) & 10.024 (0,66) \\
+Mes anterior a la restricción & 422.012 (28,13) & 26.322 (1,54) \\
+Restricción (31 ene. a 21 jun.) & 4.690 (0,80) & 5.063 (1,55) \\
+Mes posterior & 57.991 (3,27) & 2.048 (0,17) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Alcance}
+
+Aquí el sensor es una API web. Los requisitos de hardware y de inferencia en el dispositivo no aplican, y la descarga automática desde la API cumple el papel del módulo de \emph{scraping}.
+
+\subsection{Conclusiones}
+
+\begin{enumerate}
+\item Con ventanas, hilos y reintentos se bajaron los 5,69 millones de registros sin una sola falla, usando solo servicios sin servidor.
+\item Los problemas de memoria, tiempo y conexión se resolvieron con páginas más pequeñas, reintentos y meses partidos en días.
+\item Guardar los datos crudos permitió añadir columnas más tarde sin repetir la descarga.
+\item La regla de valor corrige las sumas y conserva los registros dudosos para revisarlos.
+\item La cadena produce datos limpios y nueve indicadores con US\$0,76 de procesamiento.
+\end{enumerate}

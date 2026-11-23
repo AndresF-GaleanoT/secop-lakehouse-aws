@@ -1,0 +1,10 @@
+,directa,fin_semana,inicio<firma,valor_atípico,fraccionamiento,concentración,adiciones_altas,no_identificado,anticipo_alto
+directa,,0.97,0.74,0.57,0.51,0.57,0.32,0.05,0.45
+fin_semana,0.97,,0.91,0.75,0.94,0.57,2.41,0.34,0.53
+inicio<firma,0.74,0.91,,1.34,0.96,0.87,2.36,3.16,0.34
+valor_atípico,0.57,0.75,1.34,,3.42,7.48,2.14,10.62,6.67
+fraccionamiento,0.51,0.94,0.96,3.42,,17.36,0.89,,0.9
+concentración,0.57,0.57,0.87,7.48,17.36,,2.13,,5.26
+adiciones_altas,0.32,2.41,2.36,2.14,0.89,2.13,,3.67,5.52
+no_identificado,0.05,0.34,3.16,10.62,,,3.67,,10.85
+anticipo_alto,0.45,0.53,0.34,6.67,0.9,5.26,5.52,10.85,

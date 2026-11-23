@@ -1,0 +1,555 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands,es-nodecimaldot]{babel}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit}
+\usepackage{url}
+\usepackage{cite}
+\usepackage{balance}
+
+\lstset{
+  basicstyle=\ttfamily\scriptsize,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible,
+  keywordstyle=\color{blue!60!black}\bfseries,
+  commentstyle=\color{gray},
+  showstringspaces=false
+}
+
+\setlength{\emergencystretch}{1.5em}
+% Menos espacio vacío alrededor de tablas y figuras.
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\setlength{\abovecaptionskip}{3pt}
+\setlength{\belowcaptionskip}{3pt}
+
+\begin{document}
+
+\title{Lakehouse distribuido para la detección de patrones irregulares en la contratación pública colombiana (SECOP~II) con Apache Spark y AWS}
+
+% (Un corchete justo después de \\ se lee como espaciado; por eso los campos van con {}.)
+\author{\IEEEauthorblockN{Andrés Felipe Galeano Téllez, Oscar Esteban Arias López, Juan David Sandoval Bello}
+\IEEEauthorblockA{\textit{Ingeniería de Datos e Inteligencia Artificial} \\
+\textit{Universidad Santo Tomás, Seccional Tunja}\\
+Computación Paralela y Distribuida -- Cuarto semestre \\
+Docente: Ivan Felipe Mariño Barreto \\
+Tunja, Colombia}
+}
+
+\maketitle
+
+\begin{abstract}
+La contratación pública en Colombia se publica en SECOP~II, cuyo conjunto de datos de contratos electrónicos supera los 5,6 millones de registros con 91 columnas. Su tamaño impide analizarlo de forma eficiente en un solo proceso. Este trabajo presenta un \textit{lakehouse} en AWS con arquitectura Medallion (bronce, plata y oro) que aplica tres niveles de paralelismo: (i) ingesta distribuida, en la que AWS Step Functions reparte 284 tramos de tiempo entre funciones AWS Lambda concurrentes, (ii) descarga paralela con hilos (\texttt{ThreadPoolExecutor}) dentro de cada Lambda y (iii) procesamiento distribuido con Apache Spark en AWS Glue sobre tablas Apache Iceberg. El sistema calcula nueve alertas de patrones irregulares por contrato, un índice de patrones irregulares por entidad y departamento, y el efecto de la Ley de Garantías de 2026; las alertas priorizan qué revisar y no califican conductas. Con 3 Lambdas de 4 hilos, la fase paralela descargó 4,67 millones de contratos en 27 minutos, sin perder ningún tramo pese a 4 fallos, y completó una capa bronce de 5,69 millones de contratos. Spark con 10 \textit{workers} limpió y deduplicó el histórico completo en 188 a 240~s, y con 5 \textit{workers} calculó las seis tablas analíticas de oro en 162 a 250~s. Se describe el diseño de tolerancia a fallos y escalabilidad. Al medir la descarga completa con 1, 2, 4 y 8 hilos por Lambda, el tiempo bajó de 44,5 a 24~minutos con 4 hilos ($S = 1{,}86$) y no mejoró con 8, por la granularidad de los tramos y el límite de la API. En Spark, la mediana de tres series bajó de 277 a 193~s al pasar de 2 a 4 \textit{workers} ($S = 1{,}44$), sin una mejora clara con 8 o 10. El proyecto se enmarca en el Objetivo de Desarrollo Sostenible 16 (paz, justicia e instituciones sólidas).
+\end{abstract}
+
+\begin{IEEEkeywords}
+computación distribuida, procesamiento paralelo, Apache Spark, lakehouse, speedup, contratación pública
+\end{IEEEkeywords}
+
+% ---------------------------------------------------------------------------
+\section{Introducción}
+La meta 16.6 de los Objetivos de Desarrollo Sostenible busca crear instituciones eficaces, responsables y transparentes \cite{onu_ods16}. En Colombia, la Ley 1712 de 2014 obliga a publicar la información de la contratación estatal \cite{ley1712}, y esa información se publica como datos abiertos en el portal datos.gov.co \cite{secop_dataset}.
+
+Se eligió SECOP~II por ser una fuente pública de gran volumen sobre la contratación del Estado, lo que permite examinar si es posible detectar irregularidades en una información cuyo control corresponde al propio Estado.
+
+El conjunto \emph{SECOP~II -- Contratos Electrónicos} tiene 5.679.037 contratos desde junio de 2015, publicados por una API paginada. Descargarlo y transformarlo de forma secuencial toma horas, y calcular indicadores que comparan cada contrato con el resto de los de su entidad (ventanas temporales, percentiles por tipo de contrato) excede la memoria de un equipo personal. Por eso este problema se presta para la computación paralela y distribuida.
+
+Fazekas y Kocsis muestran que indicadores objetivos calculados sobre datos de compras públicas, como la presentación de una sola oferta o la falta de publicación de la convocatoria, señalan riesgo de corrupción y pueden orientar a los reguladores sobre dónde auditar \cite{fazekas2020}. Este trabajo aplica esa idea a SECOP~II. Su objetivo general es facilitar a la ciudadanía, las veedurías y los entes de control la vigilancia de la contratación pública, mediante una cadena sin servidor en AWS que convierta el histórico de SECOP~II (5,7 millones de contratos, 2015--2026) en datos limpios y consultables y señale los contratos con patrones irregulares para priorizar su revisión. El estudio no afirma la existencia de corrupción: los registros son diligenciados por personas y contienen errores, de modo que un dato atípico no basta para establecerla. Por ello se analizan \emph{patrones irregulares}, entendidos como contratos que se apartan de lo habitual o de un tope legal.
+
+El documento se organiza así: la Sección~II plantea el problema, la III revisa los trabajos relacionados, la IV describe el sistema y la V su diseño paralelo y distribuido. La Sección~VI define la metodología de medición, la VII presenta los resultados, la VIII los costos y la IX las conclusiones.
+
+% ---------------------------------------------------------------------------
+\section{Planteamiento del problema}
+El problema se enmarca en el Objetivo de Desarrollo Sostenible 16, en particular en la meta 16.6 sobre instituciones eficaces, responsables y transparentes \cite{onu_ods16}: el trabajo busca aportar a esa meta al facilitar la revisión de la contratación pública con datos abiertos. Para ello se procesa el histórico completo de SECOP~II y se responden tres preguntas de investigación:
+\begin{enumerate}
+  \item \textbf{Panorama:} cuánto contrata el Estado por departamento, sector y año, y qué porcentaje es contratación directa.
+  \item \textbf{Índice de patrones irregulares:} qué entidades y departamentos acumulan más contratos con alertas.
+  \item \textbf{Ley de Garantías:} si la contratación directa aumenta antes de la restricción del 31 de enero al 21 de junio de 2026, separando la que cabe en las excepciones de la ley (defensa y seguridad del Estado, crédito público, emergencias y entidades sanitarias y hospitalarias) de la que no (Ley 996 de 2005, art.~33) \cite{ley996}.
+\end{enumerate}
+La Ley de Garantías es de interés porque limita la contratación directa en periodo electoral y su cumplimiento puede contrastarse con los datos publicados.
+
+La descarga de los datos presenta restricciones, por lo que se dividió en lotes y se implementó una Lambda con varias ejecuciones simultáneas. Además, el volumen de datos hace poco práctica una descarga secuencial, lo que justifica el uso de computación paralela y distribuida. El reto de cómputo es doble: la \emph{ingesta} está limitada por la red, por la API y por el tiempo máximo de 15~minutos de una Lambda; y las \emph{agregaciones} requieren mover datos entre nodos (\textit{shuffle}) porque agrupan por entidad, contratista y tipo de contrato.
+
+% ---------------------------------------------------------------------------
+\section{Trabajos relacionados}
+MapReduce popularizó el procesamiento por lotes sobre clústeres de máquinas comunes, con tolerancia a fallos por reejecución de tareas \cite{dean2008}. Spark generalizó el modelo con los \textit{Resilient Distributed Datasets} (RDD), que guardan el linaje de cada partición para recalcularla si un nodo falla y mantienen los datos en memoria \cite{zaharia2012,zaharia2016}. La arquitectura \textit{lakehouse} combina el almacenamiento barato en objetos de un \textit{data lake} con transacciones ACID propias de un \textit{data warehouse} \cite{armbrust2021}; Apache Iceberg es uno de sus formatos de tabla abiertos \cite{iceberg}. Sobre el análisis de compras públicas, Fazekas y Kocsis proponen indicadores objetivos a partir de datos de contratación \cite{fazekas2020}. A diferencia de esos trabajos, este proyecto se centra en el diseño paralelo y en medir su rendimiento sobre el caso colombiano.
+
+% ---------------------------------------------------------------------------
+\section{Sistema propuesto}
+La Fig.~\ref{fig:arq} resume la arquitectura. Todos los servicios son administrados (\textit{serverless}): no hay servidores que mantener y el cómputo se paga solo mientras se ejecuta.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  node distance=4mm and 3mm,
+  box/.style={draw, rounded corners, align=center, font=\scriptsize, minimum height=7mm, text width=17mm},
+  layer/.style={draw, fill=#1, rounded corners, align=center, font=\scriptsize, minimum height=7mm, text width=17mm},
+  arr/.style={-{Stealth[length=2mm]}, thick}
+]
+\node[box] (api) {API Socrata\\datos.gov.co};
+\node[box, right=of api] (lam) {3 Lambdas\\$\times$ 4 hilos};
+\node[layer=orange!25, right=of lam] (bro) {S3 Bronce\\JSON gzip};
+\node[box, below=of bro] (g1) {Glue Spark\\bronze\_to\_silver};
+\node[layer=gray!20, left=of g1] (pla) {Plata\\Iceberg};
+\node[box, left=of pla] (g2) {Glue Spark\\silver\_to\_gold};
+\node[layer=yellow!35, below=of g2] (oro) {Oro\\Iceberg};
+\node[box, right=of oro] (ath) {Athena\\(SQL)};
+\draw[arr] (api) -- (lam);
+\draw[arr] (lam) -- (bro);
+\draw[arr] (bro) -- (g1);
+\draw[arr] (g1) -- (pla);
+\draw[arr] (pla) -- (g2);
+\draw[arr] (g2) -- (oro);
+\draw[arr] (oro) -- (ath);
+\node[draw, dashed, rounded corners, fit=(api)(lam)(bro)(g1)(pla)(g2), inner sep=2mm,
+  label={[font=\scriptsize]above:Orquestación: EventBridge Scheduler + Step Functions}] {};
+\end{tikzpicture}
+\caption{Arquitectura Medallion del sistema.}
+\label{fig:arq}
+\end{figure}
+
+La arquitectura Medallion (o arquitectura de medallón) es un patrón de diseño de datos que organiza la información de un \textit{data lakehouse} en capas, cada una más depurada que la anterior:
+\begin{itemize}
+  \item \textbf{Bronce:} la respuesta de la API sin cambios (91 columnas), en archivos \texttt{part-NNNNN.jsonl.gz} de 10.000 registros, agrupados por carga.
+  \item \textbf{Plata:} solo las 16 columnas que necesitan los objetivos, limpias, tipadas y sin duplicados, en una tabla Iceberg particionada por mes de firma.
+  \item \textbf{Oro:} seis tablas agregadas, una o dos por objetivo, consultables con Athena (grupo de trabajo \texttt{secop}, con un límite de 1~GB escaneado por consulta).
+\end{itemize}
+Los datos personales del conjunto original (por ejemplo, documentos de supervisores o cuentas bancarias) no pasan de la capa bronce, que es privada y cifrada.
+
+\subsection{Integración con minería de datos}
+El \textit{lakehouse} alimenta un módulo de minería de datos incluido en el código del proyecto. Athena ejecuta sobre plata y oro las consultas pesadas, y el equipo local recibe solo agregados y una muestra determinista de unos 51.000 contratos (0,9\,\%). Con esos datos se realiza el análisis exploratorio, se agrupan entidades con K-means según su perfil de alertas y se buscan reglas de asociación entre alertas con Apriori. El soporte de las reglas se calcula sobre todos los contratos, a partir de los conteos por combinación de alertas.
+
+% ---------------------------------------------------------------------------
+\section{Procesamiento paralelo y distribuido}
+
+\subsection{Nivel 1: ingesta distribuida (descomposición en tareas)}
+El histórico se divide en tramos de tiempo independientes que un estado \texttt{Map} de Step Functions reparte entre invocaciones de Lambda, con \texttt{MaxConcurrency = 3}: cada Lambda corre en su propio entorno de ejecución. Es un problema \emph{embarrassingly parallel}: los tramos no se comunican entre sí.
+
+\textbf{Granularidad y balanceo de carga.} La primera versión usaba un tramo por mes (139 tareas), pero los meses no pesan lo mismo. Enero de 2026 tiene 487.368 contratos, por el pico previo a la Ley de Garantías, y solo del 22 al 31 de enero hay unos 250.000. Al ritmo de las primeras pruebas, unos 280 contratos por segundo con un hilo y 1.024~MB, el mes completo tardaría unos 1.740~s, y una Lambda dispone de 900~s. Por eso cinco meses de gran volumen (febrero de 2024, enero y febrero de 2025, enero y julio de 2026) usan una descomposición de grano fino: se descargan día por día. Otros meses grandes, como enero de 2022, se mantuvieron como un solo tramo y se descargaron después con la versión de cuatro hilos. El día más grande, el 30 de enero de 2026, tiene 43.500 contratos y tarda unos 3~minutos. En total quedan 284 tareas: 133 meses, 150 días y una para los 66.451 contratos sin fecha de firma.
+
+La concurrencia entre Lambdas se dejó en 3 porque la API pública limita las peticiones por token: con más concurrencia no se gana velocidad y aumentan los errores.
+
+\subsection{Nivel 2: descarga paralela con hilos dentro de cada Lambda}
+\textbf{Procesos e hilos.} Un \emph{proceso} es un programa en ejecución con su propio espacio de memoria. Un \emph{hilo} (\textit{thread}) es una línea de ejecución \emph{dentro} de un proceso: varios hilos del mismo proceso comparten la memoria, el código y los recursos abiertos (por ejemplo, el cliente de S3), pero cada uno tiene su propia pila y su propio punto de ejecución \cite{grama2003}. Por eso crear un hilo es mucho más barato que crear un proceso, y los hilos se comunican sin copiar datos. Compartir memoria trae el riesgo de \emph{condiciones de carrera}: si dos hilos modifican el mismo dato a la vez, el resultado depende del orden en que se ejecuten.
+
+\textbf{Idoneidad de los hilos para la descarga.} Descargar una página de 10.000 contratos consiste sobre todo en \emph{esperar}: la API tarda varios segundos en consultar su base de datos y enviar la respuesta, y luego S3 tarda en recibir el archivo. Durante esa espera la CPU permanece inactiva. Con un solo hilo, la Lambda pide la página~0, espera, la guarda, pide la página~1, espera\ldots{} Con varios hilos, mientras uno espera a la API los otros ya tienen sus peticiones en camino: las esperas se \emph{solapan}. La Fig.~\ref{fig:hilos} lo muestra para un tramo de 5 páginas.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=6.2mm, y=4.2mm, font=\scriptsize]
+  % Página = espera de red (gris) + CPU (negro) + escritura en S3 (naranja). Unidades arbitrarias.
+  \newcommand{\pag}[3]{%
+    \fill[gray!35] (#1,#2) rectangle ++(1.6,0.7);
+    \fill[black!80] (#1+1.6,#2) rectangle ++(0.2,0.7);
+    \fill[orange!60] (#1+1.8,#2) rectangle ++(0.4,0.7);
+    \node[font=\tiny] at (#1+0.8,#2+0.35) {#3};}
+  \node[anchor=east] at (-0.1,7.35) {1 hilo};
+  \foreach \i in {0,...,4} { \pag{\i*2.2}{7}{p\i} }
+  \node[anchor=east] at (-0.1,5.35) {Hilo 1};
+  \node[anchor=east] at (-0.1,4.35) {Hilo 2};
+  \node[anchor=east] at (-0.1,3.35) {Hilo 3};
+  \node[anchor=east] at (-0.1,2.35) {Hilo 4};
+  \pag{0}{5}{p0} \pag{2.2}{5}{p4}
+  \pag{0}{4}{p1} \pag{0}{3}{p2} \pag{0}{2}{p3}
+  \draw[-{Stealth[length=1.5mm]}] (0,1.4) -- (11.4,1.4) node[right] {$t$};
+  \draw[dashed] (11,1.3) -- (11,7.9);
+  \draw[dashed] (4.4,1.3) -- (4.4,6.0);
+  \node[below] at (4.4,1.4) {$T_4$};
+  \node[below] at (11,1.4) {$T_1$};
+  \fill[gray!35] (0,0) rectangle ++(0.5,0.5); \node[right] at (0.5,0.25) {espera de la API};
+  \fill[black!80] (4.6,0) rectangle ++(0.5,0.5); \node[right] at (5.1,0.25) {CPU};
+  \fill[orange!60] (6.9,0) rectangle ++(0.5,0.5); \node[right] at (7.4,0.25) {escritura en S3};
+\end{tikzpicture}
+\caption{Línea de tiempo de un tramo de 5 páginas con 1 y con 4 hilos. Con 4 hilos las esperas se solapan; la página~4 espera a que el hilo~1 quede libre.}
+\label{fig:hilos}
+\end{figure}
+
+\textbf{Efecto del GIL en la descarga.} En CPython, el intérprete estándar de Python, solo un hilo a la vez puede ejecutar código Python: lo impide el \textit{Global Interpreter Lock} (GIL) \cite{python_threading}. Esta restricción limitaría el paralelismo, pero el GIL se libera mientras un hilo espera la red (lectura de un \textit{socket}) y durante la compresión con \texttt{zlib}. Como la mayor parte del tiempo de cada página es espera, los hilos avanzan en paralelo. Solo las partes que ejecutan código Python puro (por ejemplo, convertir el JSON en objetos) se turnan el GIL: son la fracción secuencial $f$ de la ley de Amdahl en este nivel. Si la tarea fuera de cálculo intensivo, la opción correcta serían procesos (\texttt{multiprocessing}), cada uno con su propio intérprete y su propio GIL, a cambio de más memoria y de copiar los datos entre procesos.
+
+\textbf{Reparto del trabajo.} Se usa un \emph{pool} de hilos: \texttt{ThreadPoolExecutor} crea $p$ hilos una sola vez y les va entregando tareas desde una cola; cuando un hilo termina una página, toma la siguiente. Dentro de cada tramo, la Lambda (i) pide a la API el número total de registros (\texttt{count(*)}), (ii) calcula los desplazamientos (\textit{offsets}) de las páginas, por ejemplo 0, 10.000, 20.000\ldots, y (iii) entrega una tarea por \textit{offset} al \emph{pool}:
+
+\begin{lstlisting}[language=Python]
+total = count_rows(dataset_id, where)
+offsets = range(0, total, page_size)
+with ThreadPoolExecutor(max_workers=workers) as pool:
+    sizes = list(pool.map(job, enumerate(offsets)))
+# si la ultima pagina llego llena, hubo registros
+# nuevos despues del conteo: se siguen bajando
+\end{lstlisting}
+
+Cada tarea \texttt{job} descarga su página y la escribe en S3 como \texttt{part-NNNNN.jsonl.gz}, donde \texttt{NNNNN} es el número de la página. Al salir del bloque \texttt{with}, el programa espera a que todos los hilos terminen: es una \emph{barrera} de sincronización. \texttt{pool.map} devuelve los resultados en el orden de las páginas, aunque los hilos terminen en otro orden.
+
+\textbf{Prevención de condiciones de carrera.} El diseño evita compartir datos que cambian: cada hilo recibe su propio \textit{offset}, descarga su propia página y escribe un archivo con nombre distinto, así que no necesita candados (\textit{locks}). Lo único compartido es el cliente de S3, que en \texttt{boto3} se puede usar desde varios hilos, y el registro de \textit{logs}, que también es seguro entre hilos. Los conteos se suman al final, en el hilo principal, después de la barrera.
+
+\textbf{Modelo del tiempo de descarga.} Si un tramo tiene $P$ páginas, cada una tarda $t$ y el trabajo fijo (arranque y conteo) tarda $c$, entonces con $p$ hilos:
+\begin{equation}
+T_p \approx c + \left\lceil \frac{P}{p} \right\rceil t, \qquad S(p) = \frac{T_1}{T_p} \leq \frac{P}{\lceil P/p \rceil}.
+\end{equation}
+El techo depende de cómo se reparten las páginas, no solo de $p$. Septiembre de 2026 tiene $P = 9$ páginas: con 4 hilos se necesitan 3 rondas y $S \leq 3$; con 8 hilos, 2 rondas y $S \leq 4{,}5$, aunque los hilos se duplicaron. Con una sola página ($P = 1$), $S = 1$ para cualquier $p$. El experimento~A permite comparar este modelo con los tiempos reales, que además dependen de cuántas peticiones simultáneas acepte la API.
+
+\textbf{Número de hilos.} Se eligieron 4 hilos por Lambda. Cada hilo guarda una página en memoria mientras la comprime y la sube, así que la memoria de la Lambda pasó de 1.024 a 2.048~MB; en Lambda, más memoria también asigna más CPU. Más hilos no ayudan si la API limita las peticiones simultáneas por token. El número se controla con la variable \texttt{PARALLEL\_PAGES} o con el campo \texttt{workers} del evento; con un hilo, el código se comporta como la versión secuencial original, lo que permite medir $T_1$ con el mismo programa.
+
+Así el sistema combina los dos tipos de paralelismo: \emph{distribuido} entre Lambdas, que no comparten memoria (Nivel~1), y \emph{paralelo} con memoria compartida dentro de cada una (Nivel~2), hasta $3 \times 4 = 12$ descargas simultáneas.
+
+\subsection{Nivel 3: procesamiento distribuido con Apache Spark}
+Dos trabajos de AWS Glue~5.0 (Spark) procesan el histórico completo:
+\begin{itemize}
+  \item \textbf{bronze\_to\_silver:} lee todos los archivos en paralelo (una partición por archivo), normaliza, elimina duplicados con una ventana \texttt{row\_number()} por \texttt{id\_contrato}, aplica reglas de calidad y escribe con \texttt{MERGE INTO} de Iceberg.
+  \item \textbf{silver\_to\_gold:} calcula las alertas y los índices. Varias operaciones exigen \textit{shuffle}: percentiles aproximados por tipo de contrato (valor atípico, $Q_3 + 3\,\mathrm{IQR}$), ventanas de 30 días por entidad, contratista y código de producto UNSPSC (posible fraccionamiento) y sumas por entidad (concentración).
+\end{itemize}
+
+Las nueve alertas por contrato son: contratación directa, firma en fin de semana, inicio antes de la firma, valor atípico, posible fraccionamiento ($\geq 3$ contratos del mismo producto en 30 días), concentración ($\geq 30$\,\% del valor de la entidad), adiciones mayores al 50\,\% del plazo, contratista no identificado y anticipo mayor al 50\,\% del valor (tope de la Ley 80 de 1993, art.~40 \cite{ley80}). Marcan patrones fuera de lo habitual o de un tope legal para priorizar qué revisar; \emph{no} califican conductas.
+
+\subsection{Tolerancia a fallos}
+\begin{itemize}
+  \item \textbf{Ingesta:} cada petición HTTP tiene hasta 4 intentos con espera exponencial ($2^k$~s), también cuando la API corta la conexión; cada tarea del \texttt{Map} se reintenta 3 veces (30, 60 y 120~s). En la fase paralela de la carga histórica, ya en producción, fallaron 4 tareas (por ejemplo, por cortes de conexión de la API) y Step Functions las reintentó con éxito, sin intervención manual y sin perder ningún tramo.
+  \item \textbf{Spark:} si un \textit{executor} falla, Spark recalcula solo las particiones perdidas a partir del linaje \cite{zaharia2012}.
+  \item \textbf{Idempotencia:} la escritura en plata es un \texttt{MERGE} por \texttt{id\_contrato}; repetir una carga no duplica registros. Iceberg confirma cada escritura como una transacción atómica: un trabajo fallido no deja la tabla a medias \cite{iceberg}.
+  \item \textbf{Calidad:} si hay \texttt{id\_contrato} nulos o duplicados, el trabajo se detiene antes de escribir.
+\end{itemize}
+
+\subsection{Escalabilidad}
+El sistema escala horizontalmente en cada nivel: más tareas concurrentes en el \texttt{Map}, más hilos por Lambda y más \textit{workers} en Glue (cada \textit{worker} G.1X tiene 4~vCPU y 16~GB). La tabla de plata está particionada por mes, lo que permite a Spark y a Athena leer solo las particiones necesarias.
+
+% ---------------------------------------------------------------------------
+\section{Metodología de medición del rendimiento}
+Sea $T_1$ el tiempo con un hilo (o proceso) y $T_p$ con $p$. Se definen \cite{grama2003}:
+\begin{equation}
+S(p) = \frac{T_1}{T_p}, \qquad E(p) = \frac{S(p)}{p}.
+\end{equation}
+Según la ley de Amdahl \cite{amdahl1967}, si una fracción $f$ del trabajo es secuencial,
+\begin{equation}
+S(p) \leq \frac{1}{f + (1-f)/p},
+\end{equation}
+por lo que el \textit{speedup} se satura aunque se agreguen procesos. La ley de Gustafson \cite{gustafson1988} matiza el límite cuando el tamaño del problema crece con los recursos, que es el caso de un histórico que aumenta cada día.
+
+\textbf{Experimento A (hilos, proceso real):} se ejecuta la descarga completa del histórico (5.698.182 contratos) cuatro veces, con $p \in \{1, 2, 4, 8\}$ hilos por Lambda y siempre 3 Lambdas en paralelo. Todas usan los mismos 371 tramos: los meses con más de unos 110.000 contratos se descargan por día, para que la versión de un hilo quepa en los 15~minutos de la Lambda. Las ejecuciones corren una después de otra, para no competir por la API, y escriben en una carpeta aparte (\texttt{bronze/\_benchmark/}). $T_p$ es el tiempo de pared de la ejecución completa, tomado de Step Functions. Todo lo automatiza el script \texttt{benchmark\_historico.py}.
+
+\textbf{Experimento B (Spark distribuido):} se ejecuta el trabajo \texttt{silver\_to\_gold}, que reescribe oro desde cero y por eso se puede repetir sin alterar los datos, sobre el histórico completo con 2, 4, 8 y 10 \textit{workers} en modo Standard, que no tiene la variación de arranque de Flex. Se realizan tres series, cada una con un orden distinto de configuraciones, y se reporta la mediana. En Glue un \textit{worker} es el \textit{driver}, así que $n$ \textit{workers} son $n-1$ ejecutores: la línea base es $T_2$ (un ejecutor) y se usan $S(n) = T_2/T_n$ y $E(n) = S(n)/(n-1)$. El tiempo se toma de la duración de ejecución que registra Glue, y el script \texttt{benchmark\_spark.py} lanza cada serie.
+
+\textbf{Reproducibilidad.} El código, los scripts de medición y los resultados crudos se entregan con este documento, y el archivo \texttt{README.md} indica cómo repetir cada experimento. Repetirlos requiere una cuenta de AWS, y las cifras pueden variar porque el conjunto de datos crece cada día y la latencia de la API cambia.
+
+% ---------------------------------------------------------------------------
+\section{Resultados}
+
+\subsection{Resultados verificados de la ingesta}
+Las primeras pruebas en AWS descargaron un día (4 de noviembre de 2026: 3.113 contratos en un archivo) y un mes (septiembre de 2026: 83.105 contratos en 9 archivos, en 4~min~54~s). La prueba de septiembre, con un solo hilo, procesó unos 283 registros por segundo. Con ese ritmo, la descarga secuencial del histórico tomaría del orden de 5,6~horas, y con tres Lambdas concurrentes cerca de 2~horas. Esa estimación resultó pesimista: con la Lambda ya en 2.048~MB, el mismo mes tardó 102~s con un hilo (unos 810 registros por segundo), y el experimento~A descargó el histórico con un hilo por Lambda en 44,5~minutos. Entre ambas mediciones cambió la memoria, y también pudo cambiar la latencia de la API.
+
+Durante las pruebas apareció un error de memoria: con páginas de 50.000 registros, la Lambda superó su límite de 1.024~MB (\texttt{Runtime.OutOfMemory}). Al reducir la página a 10.000 registros el mes completo se procesó sin errores: un lote más pequeño gasta menos memoria por tarea, a cambio de hacer más peticiones.
+
+\subsection{Carga histórica: de un hilo a cuatro}
+La carga histórica empezó con la versión de un hilo por Lambda y completó 74 meses sin huecos (junio de 2015 a julio de 2021), con un corte de conexión recuperado automáticamente. Luego se detuvo, se desplegó la versión con hilos (\texttt{PARALLEL\_PAGES = 4}, 2.048~MB) y se relanzó desde agosto de 2021 con 210 tramos restantes; los meses ya descargados se conservaron. La Tabla~\ref{tab:paralelo} muestra los primeros tramos de la versión paralela contra la API real.
+
+\begin{table}[htbp]
+\caption{Primeros tramos con 4 hilos por Lambda (API real)}
+\label{tab:paralelo}
+\centering
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Mes & Registros & Páginas & Tiempo (s) & Reg./s \\
+\midrule
+Ago. 2021 & 48.097 & 5 & 27 & 1.781 \\
+Sep. 2021 & 45.631 & 5 & 26 & 1.755 \\
+Oct. 2021 & 40.861 & 5 & 32 & 1.277 \\
+Feb. 2022 & 41.284 & 5 & 57 & 724 \\
+Mar. 2022 & 9.333 & 1 & 13 & 707 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Con 5 páginas y 4 hilos, el ritmo por Lambda llegó a entre 1.300 y 1.800 registros por segundo en los mejores tramos, frente a unos 280 en la primera prueba con un hilo. Esa diferencia no mide el \textit{speedup}: se comparan meses distintos, con distinta latencia de la API, y la mejora también incluye el cambio de memoria. Sobre un mismo mes y con 2.048~MB (septiembre de 2026, 9 páginas), la descarga pasó de 102,44~s con un hilo a 37,73~s con cuatro, es decir $S(4) \approx 2{,}72$, por debajo del techo de 3 que da la Ec.~(1). El experimento~A repite la medición sobre todo el histórico.
+
+\textbf{Resultado de la fase paralela.} La Tabla~\ref{tab:fase} resume la ejecución completa, tomada del historial de Step Functions.
+
+\begin{table}[htbp]
+\caption{Fase paralela de la carga histórica (3 Lambdas $\times$ 4 hilos)}
+\label{tab:fase}
+\centering
+\begin{tabular}{@{}lr@{}}
+\toprule
+Tramos completados & 210 de 210 \\
+Contratos descargados & 4.672.446 \\
+Páginas (archivos) & 581 \\
+Tiempo de pared & 27~min~11~s \\
+Suma del tiempo de las Lambdas & 4.592~s \\
+Fallos reintentados con éxito & 4 \\
+Tramos perdidos & 0 \\
+\midrule
+Mediana, tramos de 4 o más páginas & 2.094 reg./s \\
+Mediana, tramos de 1 página & 534 reg./s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+De esta ejecución salen tres resultados:
+\begin{itemize}
+  \item \textbf{Paralelismo efectivo entre Lambdas:} la suma del tiempo de las Lambdas dividida por el tiempo de pared es $4.592 / 1.631 \approx 2{,}8$, cerca del máximo de 3 tareas concurrentes: el \texttt{Map} mantuvo ocupadas las tres Lambdas casi todo el tiempo.
+  \item \textbf{Granularidad:} los 53 tramos de 4 o más páginas descargaron a una mediana de 2.094 registros por segundo, y los 135 tramos de una sola página a 534, unas cuatro veces menos. Coincide con el modelo de la Ec.~(1): sin páginas que repartir, los hilos no ayudan.
+  \item \textbf{El tramo más grande cupo con margen:} enero de 2022, el mes previo a la Ley de Garantías de ese año, tiene 294.128 contratos (30 páginas) y se descargó en 250~s, unos 1.180 registros por segundo. Al ritmo medio de un hilo en el experimento~A (unos 720 registros por segundo) habría tardado unos 410~s: también cabría en los 900~s de una Lambda, con menos margen.
+\end{itemize}
+
+Con la fase anterior de un hilo, la capa bronce quedó completa: 5.687.382 contratos en 732 archivos que ocupan 2,48~GB comprimidos.
+
+\subsection{Validación de la descarga paralela}
+Antes de llevarla a AWS, la versión con hilos se probó contra una API simulada: produjo exactamente los mismos contratos y archivos que la versión secuencial, sin duplicados; recuperó registros que llegaron después del conteo; y se recuperó de dos cortes de red seguidos. En esa simulación, 20 páginas tardaron 1,06~s con un hilo y 0,36~s con cuatro, es decir $S(4) \approx 2{,}9$ y $E(4) \approx 0{,}73$. Es solo una prueba de corrección: la latencia de la API real es distinta. Después la versión se desplegó en AWS y se usa en la carga histórica (Tabla~\ref{tab:paralelo}).
+
+\subsection{Primera ejecución de Spark en AWS Glue}
+El trabajo \texttt{bronze\_to\_silver} se ejecutó por primera vez sobre septiembre de 2026 (9 archivos, 83.105 contratos) con 2 \textit{workers} G.1X en modo Flex, que usa capacidad de cómputo sobrante de AWS a menor precio a cambio de un arranque más lento. Terminó con éxito en 208~s de ejecución: pasó las reglas de calidad, creó la tabla Iceberg \texttt{silver\_contratos} en el catálogo de Glue y escribió 1,5~MB en formato Parquet, frente a 33,6~MB del JSON comprimido de bronce, porque plata guardaba entonces solo 13 de las 91 columnas. Esta ejecución validó el código de Spark antes de procesar el histórico.
+
+La concurrencia máxima de 1 también sirvió de control: Glue rechazó un segundo clic en \emph{Run} con el error \texttt{Concurrent\-Runs\-Exceeded\-Exception}, lo que evita que dos copias del mismo trabajo escriban a la vez en la misma tabla.
+
+\subsection{Capa plata completa con Spark distribuido}
+Después de validar el código con un mes, el mismo trabajo procesó todo bronce con 10 \textit{workers} G.1X en modo Flex. Como la tabla ya existía, Spark tomó el camino de \texttt{MERGE INTO} y actualizó la tabla Iceberg en una sola transacción. La Tabla~\ref{tab:plata} resume el resultado.
+
+\begin{table}[htbp]
+\caption{Trabajo \texttt{bronze\_to\_silver} sobre el histórico completo}
+\label{tab:plata}
+\centering
+\begin{tabular}{@{}lr@{}}
+\toprule
+Filas leídas de bronce & 5.690.495 \\
+Contratos únicos en plata & 5.687.110 \\
+Duplicados eliminados & 3.385 \\
+Tiempo, primera versión (13 columnas) & 199~s \\
+Consumo, primera versión & 1.430 DPU-s ($\approx$ 0,12 USD) \\
+Tiempo, reproceso (16 columnas) & 188~s \\
+Consumo, reproceso & 1.341 DPU-s ($\approx$ 0,11 USD) \\
+Tamaño en plata, primera versión & 107,2~MiB \\
+Particiones (mes de firma) & 137 \\
+\midrule
+\texttt{id\_contrato} nulos o duplicados & 0 \\
+\texttt{nit\_entidad} o departamento nulos & 0 \\
+Valores negativos & 0 \\
+Fecha de firma nula & 67.098 \\
+Documento del proveedor nulo & 16.154 \\
+Fecha de fin anterior a la de inicio & 644 \\
+Valor no confiable ($> 10^{12}$ COP) & 85 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Las reglas críticas se cumplieron, así que el trabajo escribió. Las demás reglas no detienen el proceso: se reportan para que el análisis las tenga en cuenta. Bronce tenía 5.690.495 filas: los 5.687.382 contratos de la carga histórica más los 3.113 de la prueba de un día (4 de noviembre de 2026), que también estaban en la carga de noviembre. La deduplicación con \texttt{row\_number()} eliminó esos 3.113 y otros 272 contratos repetidos entre tramos, y dejó 5.687.110 contratos únicos. Plata ocupa unas 22 veces menos que bronce (107~MiB frente a 2,3~GB) porque guardaba 13 columnas en formato columnar comprimido.
+
+\textbf{Atomicidad en la práctica.} Antes de esta ejecución se detuvieron dos de forma deliberada, una por configuración sin guardar y otra por una etiqueta equivocada. La tabla quedó intacta en ambos casos: Iceberg solo publica una nueva versión de metadatos cuando el trabajo termina completo. En la ejecución exitosa, la tabla pasó de la versión 0 a la 1.
+
+\textbf{Evolución de esquema.} Después, al ajustar los objetivos, plata necesitó tres columnas más: el valor del anticipo, el código de producto UNSPSC (normalizado de \texttt{V1.90141701} a \texttt{90141701}) y la justificación de la modalidad. Se agregaron con \texttt{ALTER TABLE ADD COLUMN}, que en Iceberg solo cambia los metadatos y no reescribe los datos, y un nuevo \texttt{MERGE} de todo bronce las llenó: 188~s con 10 \textit{workers}.
+
+\textbf{Escalabilidad débil.} La Tabla~\ref{tab:debil} compara la prueba de un mes con el histórico.
+
+\begin{table}[htbp]
+\caption{Spark: un mes frente al histórico completo}
+\label{tab:debil}
+\centering
+\begin{tabular}{@{}lrr@{}}
+\toprule
+ & Sept. 2026 & Histórico \\
+\midrule
+Contratos & 83.105 & 5.687.110 \\
+\textit{Workers} G.1X & 2 & 10 \\
+Tiempo (s) & 208 & 199 \\
+DPU-s & 282 & 1.430 \\
+Contratos por segundo & $\approx$ 400 & $\approx$ 28.600 \\
+Contratos por segundo y \textit{worker} & $\approx$ 200 & $\approx$ 2.860 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Con 5 veces más \textit{workers}, Spark procesó 68 veces más datos en un tiempo similar. Arrancar el clúster, planificar y escribir los metadatos tarda casi lo mismo con 83 mil o con 5,7 millones de registros; con más datos ese costo fijo se diluye y cada \textit{worker} rinde unas 14 veces más, como describe la ley de Gustafson \cite{gustafson1988}. Esto es escalabilidad débil y no sirve para medir \textit{speedup}, porque cambian a la vez los datos y los \textit{workers}.
+
+\subsection{Capa oro con Spark distribuido}
+El trabajo \texttt{silver\_to\_gold} lee la tabla de plata (5.687.110 filas) y calcula las seis tablas Iceberg de oro: panorama de la contratación, alertas por contrato, índice de patrones irregulares por entidad y por departamento, y Ley de Garantías por día y por entidad. Usa 5 \textit{workers} G.1X (un \textit{driver} y 4 ejecutores) en modo Flex.
+
+Es la etapa con más comunicación entre nodos: las alertas exigen \textit{shuffle} para agrupar por tipo de contrato (percentiles y rango intercuartílico del valor atípico), por entidad (concentración) y, en el posible fraccionamiento, por la terna entidad--contratista--código UNSPSC con una ventana \texttt{rangeBetween} de 30 días. Spark reparte esas agrupaciones entre los ejecutores por \textit{hash} de la llave, de modo que cada ejecutor calcula un subconjunto de grupos. Agregar el código UNSPSC a la llave produce más grupos y más pequeños: reparte mejor la carga, pero cada ventana tiene menos contratos sobre los cuales contar.
+
+\begin{table}[htbp]
+\caption{Contratos con cada alerta (de 5.687.110)}
+\label{tab:alertas}
+\centering
+\begin{tabular}{@{}lr@{}}
+\toprule
+Con al menos una alerta & 4.757.522 \\
+\midrule
+Contratación directa & 4.411.893 \\
+Firma en fin de semana & 331.186 \\
+Valor atípico & 236.328 \\
+Inicio antes de la firma & 210.009 \\
+Adiciones mayores al 50\,\% del plazo & 70.157 \\
+Posible fraccionamiento & 38.746 \\
+Contratista no identificado & 16.154 \\
+Concentración en un contratista & 6.698 \\
+Anticipo mayor al 50\,\% del valor & 160 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tab:alertas} muestra el resultado del cálculo distribuido. La contratación directa domina (78\,\% de los contratos), por lo que el índice se apoya sobre todo en las alertas menos frecuentes. \textbf{Regla de calidad para valores imposibles.} Bronce trae contratos con valores de hasta $4{,}4\times10^{17}$ pesos, que distorsionaban las sumas: el valor total 2015--2026 daba $7{,}3\times10^{17}$ pesos. Plata marca con \texttt{valor\_confiable = false} los contratos de más de un billón de pesos ($10^{12}$), que son 85 de 5.687.110. No se borran, porque cuentan en todos los conteos y alertas, pero su valor no entra en ninguna suma ni en la concentración, y oro reporta cuántos hay en cada grupo. Con la regla, el valor total quedó en 874 billones de pesos. La decisión es conservadora: si algún contrato real supera el billón, queda fuera de las sumas. La nueva columna se agregó otra vez por evolución de esquema de Iceberg.
+
+\begin{table}[htbp]
+\caption{Contratación directa y Ley de Garantías 2026}
+\label{tab:garantias}
+\centering
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Periodo & No exceptuada & Exceptuada \\
+\midrule
+Mismo mes de 2025 & 104.813 & 10.024 \\
+Mes antes de la restricción & 422.012 & 26.322 \\
+Restricción (31 ene.--21 jun.) & 4.690 & 5.063 \\
+Mes después & 57.991 & 2.048 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tab:garantias} separa la contratación directa que cabe en las excepciones del art.~33 de la Ley 996 de 2005 de la que no. SECOP~II no marca esas excepciones, así que se aproximan: las emergencias y desastres, con la causal de urgencia manifiesta; el crédito público, con la causal del mismo nombre; la defensa y seguridad del Estado, con la de bienes y servicios sujetos a reserva; y las entidades sanitarias y hospitalarias, con el sector o con nombres como \textit{hospital}, \textit{clínica} o \textit{E.S.E.} La reconstrucción de infraestructura tras atentados o desastres no se identifica por separado, de modo que esos contratos pueden quedar como no exceptuados. La excepción de salud se decide por entidad y no por contrato: con funciones de ventana particionadas por NIT, una entidad queda exceptuada si alguno de sus nombres corresponde a un hospital o si la mayoría de sus contratos son del sector salud. Es otra operación con \textit{shuffle} por entidad. La no exceptuada se multiplicó por cuatro en el mes previo a la restricción frente al mismo mes de 2025, y cayó a menos de 5.000 contratos durante ella. En valor confiable pasó de 8,12 billones de pesos en el mismo periodo de 2025 a 28,24 billones en el mes previo a la restricción, y a 0,81 billones durante ella.
+
+\begin{table}[htbp]
+\caption{Etapas de Spark sobre el histórico completo (Flex)}
+\label{tab:etapas}
+\centering
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Etapa & \textit{Workers} & Tiempo (s) & DPU-s & USD \\
+\midrule
+Plata, 16 columnas & 10 & 188 & 1.341 & 0,11 \\
+Oro, 9 alertas & 5 & 162 & 608 & 0,05 \\
+Oro, regla de salud & 5 & 250 & 737 & 0,06 \\
+Plata, valor confiable & 10 & 240 & 1.408 & 0,11 \\
+Oro, valor confiable & 5 & 165 & 564 & 0,05 \\
+Oro, salud por entidad & 5 & 231 & 816 & 0,07 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tab:etapas} resume los reprocesos del histórico completo tras cada ajuste de los objetivos; cada reproceso de plata y oro cuesta unos 0,16~USD. Oro consume menos que plata en todas las ejecuciones (de 564 a 816~DPU-s frente a 1.341 y 1.408) con la mitad de \textit{workers}: lee Parquet con pocas columnas en lugar de 2,3~GB de JSON comprimido con 91, de modo que la limpieza previa en plata abarata el cómputo posterior. La tabla también muestra el ruido del modo Flex, que asigna los \textit{workers} con capacidad sobrante: plata tardó 188 y 240~s sobre los mismos datos con casi el mismo código (28\,\% de diferencia). Sus DPU-s varían mucho menos que el tiempo (5\,\% frente a 28\,\%), lo que apunta a que la diferencia está en la espera por \textit{workers} y no en el cómputo. Los tiempos de oro, de 162 a 250~s, no permiten esta comparación porque su código cambió entre ejecuciones. Por eso el experimento~B se ejecutó en modo Standard.
+
+\subsection{Orquestación diaria}
+La máquina de estados \texttt{secop-pipeline-diario} corre todos los días a las 6:00~a.~m. (hora de Colombia) desde EventBridge Scheduler. Como la API publica con unos días de retraso, cada día se vuelven a descargar los últimos 10 días y el \texttt{MERGE} de Iceberg actualiza los contratos existentes y agrega los nuevos sin duplicarlos. Si la descarga trae 0 registros, Glue no se ejecuta. Si algo falla, la ejecución queda en estado \textit{Failed} en la consola de Step Functions, con el paso y el error que la detuvieron. El número de \textit{workers} se pasa en cada ejecución: 2 para la carga diaria y 10 para la histórica.
+
+\begin{table}[htbp]
+\caption{Prueba de punta a punta del pipeline diario (13 nov. 2026)}
+\label{tab:diario}
+\centering
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Paso & \textit{Workers} / hilos & Tiempo (s) & DPU-s \\
+\midrule
+Lambda (25.533 contratos) & 4 hilos & 22 & -- \\
+Bronce $\rightarrow$ plata & 2 & 129 & 201 \\
+Plata $\rightarrow$ oro & 5 & 230 & 685 \\
+\midrule
+Ejecución completa & & 491 & 886 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Plata pasó de 5.687.110 a 5.702.270 contratos (15.160 nuevos; el resto fueron actualizaciones). El costo diario es de unos 0,07~USD, cerca de 2,1~USD al mes.
+
+\subsection{Speedup y eficiencia}
+\textbf{Experimento A.} Las cuatro ejecuciones terminaron sin fallos, con los mismos 5.698.182 contratos y 784 páginas. La Tabla~\ref{tab:mp} muestra el resultado.
+
+\begin{table}[htbp]
+\caption{Experimento A: descarga completa del histórico (3 Lambdas, 371 tramos)}
+\label{tab:mp}
+\centering
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+Hilos $p$ & $T_p$ (s) & $S(p)$ & $E(p)$ & $\Sigma$ Lambdas (s) & $e$ \\
+\midrule
+1 & 2.673 & 1,00 & 1,00 & 7.902 & -- \\
+2 & 1.565 & 1,71 & 0,85 & 4.598 & 0,17 \\
+4 & 1.439 & 1,86 & 0,47 & 4.234 & 0,38 \\
+8 & 1.492 & 1,79 & 0,22 & 4.378 & 0,50 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Pasar de 1 a 2 hilos redujo la descarga de 44,5 a 26~minutos, con eficiencia 0,85. A partir de ahí el \textit{speedup} se satura: con 4 hilos sube apenas a 1,86 y con 8 baja a 1,79. Para explicar por qué, la última columna usa la métrica de Karp--Flatt \cite{karpflatt1990}, que estima la fracción secuencial a partir del \textit{speedup} medido:
+\begin{equation}
+e = \frac{1/S(p) - 1/p}{1 - 1/p}.
+\end{equation}
+Si el límite fuera solo una parte secuencial fija (Amdahl), $e$ sería constante. Aquí crece de 0,17 a 0,50: al agregar hilos aparece un costo que antes no existía. La Tabla~\ref{tab:granularidad} muestra de dónde viene, separando los tramos por número de páginas.
+
+\begin{table}[htbp]
+\caption{Suma del tiempo de las Lambdas por tipo de tramo (s)}
+\label{tab:granularidad}
+\centering
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Tramos & $p=1$ & $p=2$ & $p=4$ & $p=8$ \\
+\midrule
+252 de 1 página & 1.435 & 1.420 & 1.498 & 1.670 \\
+53 de 5 o más páginas & 4.581 & 2.149 & 1.655 & 1.585 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{Granularidad:} 252 de los 371 tramos (68\,\%) tienen una sola página y, como predice la Ec.~(1), no ganan nada con más hilos; con 8 incluso tardan un 16\,\% más por el costo de crear hilos que no tienen trabajo. Contando rondas de páginas por tramo, el techo teórico del \textit{speedup} es 1,44 con 2 hilos, 1,81 con 4 y 2,06 con 8.
+  \item \textbf{Los tramos grandes sí escalan:} los 53 tramos de 5 o más páginas pasan de 4.581 a 1.585~s, un \textit{speedup} de 2,9 con 8 hilos. El valor con 2 hilos (2,13) supera ligeramente el ideal, lo que se explica por la variación de la latencia de la API entre ejecuciones, que corrieron a horas distintas.
+  \item \textbf{Recurso compartido:} con 3 Lambdas y 8 hilos hay hasta 24 peticiones simultáneas a la misma API. La ganancia de 4 a 8 hilos en los tramos grandes es solo del 4\,\%: el cuello de botella pasa a ser la API.
+\end{itemize}
+
+\textbf{Decisión de diseño.} Cuatro hilos dan el mejor \textit{speedup} (1,86) y la menor suma de tiempo de Lambda (4.234~s, el 54\,\% de la versión de un hilo), es decir, el menor costo. Con 8 hilos aumentan tanto el costo como el tiempo. Por eso la configuración de producción usa \texttt{PARALLEL\_PAGES = 4}.
+
+\textbf{Experimento B.} Se completaron tres series de \texttt{silver\_to\_gold} en modo Standard, con doce ejecuciones exitosas sobre 5.708.737 contratos de plata. Las filas de plata y de la tabla de alertas no cambiaron entre ejecuciones. La Tabla~\ref{tab:spark} muestra la mediana y el rango de los tiempos; en la métrica de Karp--Flatt se toma $p = n-1$.
+
+\begin{table}[htbp]
+\caption{Experimento B: Spark en AWS Glue (tres series, modo Standard)}
+\label{tab:spark}
+\centering
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+\textit{Workers} $n$ & $T_n$ (s) & Rango (s) & $S(n)$ & $E(n)$ & $e$ \\
+\midrule
+2 & 277 & 255--293 & 1,00 & 1,00 & -- \\
+4 & 193 & 183--194 & 1,44 & 0,48 & 0,55 \\
+8 & 171 & 163--207 & 1,62 & 0,23 & 0,55 \\
+10 & 213 & 194--222 & 1,30 & 0,14 & 0,74 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Pasar de 2 a 4 \textit{workers} redujo la mediana de 277 a 193~s, y sus rangos no se solapan. Con más \textit{workers} la ganancia no se distingue de la variación entre series: los rangos de 4, 8 y 10 \textit{workers} se solapan, aunque la mediana con 10 fue la peor de los tres. El valor $e = 0{,}55$ con 3 y 7 ejecutores indica que una parte importante del tiempo no se redujo al agregar ejecutores, y su aumento a 0,74 con 9 apunta a un costo adicional de coordinación. El experimento no separa las causas; entre las posibles están el arranque y la planificación, el \textit{shuffle} y la confirmación sucesiva de las seis tablas Iceberg.
+
+\textbf{Decisión de diseño.} La mediana de consumo fue de 555, 775, 1.370 y 2.135~DPU-s con 2, 4, 8 y 10 \textit{workers}. Con 4 \textit{workers} el tiempo baja un 30\,\% a cambio de un 40\,\% más de DPU-s; con 8 o 10 el consumo crece mucho más sin una mejora clara. Para este volumen, 4 \textit{workers} ofrecen el mejor equilibrio entre las configuraciones medidas. La producción usa 5, un valor cercano que este experimento no midió.
+
+% ---------------------------------------------------------------------------
+\section{Costos}
+Se configuró un presupuesto de 15~USD en AWS Budgets con alertas al 50, 80 y 100\,\%, y una acción automática que, al 100\,\%, aplica una política IAM que bloquea Lambda, Step Functions y Glue. La ingesta y el almacenamiento cuestan centavos de dólar; el costo principal es Glue, que se cobra por DPU-hora. Por eso los trabajos de producción usan el modo Flex, más barato: sin contar el experimento~B, las ejecuciones de Glue del proyecto, incluidas las pruebas y los reprocesos, suman unos 10.270 DPU-s, cerca de 0,83~USD. Las doce ejecuciones del experimento~B, en modo Standard, sumaron 14.579 DPU-s, cerca de 1,78~USD. Las cuatro descargas completas del experimento~A costaron alrededor de 1~USD en Lambda y Step Functions; sus 10~GB de copias de prueba se borraron al terminar.
+
+% ---------------------------------------------------------------------------
+\section{Conclusiones y trabajo futuro}
+El trabajo se propuso facilitar a la ciudadanía y a los entes de control la vigilancia de la contratación pública. El objetivo se cumplió. El sistema usa tres niveles de paralelismo: Lambdas distribuidas, hilos dentro de cada Lambda y un clúster Spark. Con cuatro hilos la descarga completa pasó de 44,5 a 24~minutos ($S = 1{,}86$); el límite está en la granularidad de los tramos y en la API compartida. En Spark, pasar de 2 a 4 \textit{workers} redujo el tiempo de 277 a 193~s ($S = 1{,}44$), y con 8 o 10 no hubo una mejora clara. La tolerancia a fallos recuperó 4 fallos sin perder datos, y el pipeline diario se ejecuta de forma automática por unos 0,07~USD al día. Como trabajo futuro se propone una orquestación que genere y reporte informes sobre los patrones irregulares encontrados, junto con un equipo de analistas que revise los casos que activan varias alertas y elabore los informes. También se propone medir por separado las etapas del trabajo de Spark, para identificar qué limita su \textit{speedup}, y orquestar un equipo de agentes de inteligencia artificial que lea los documentos de cada contrato (PDF u otros formatos publicados en SECOP~II) y analice anomalías que no se ven en los datos tabulares, como diferencias entre el objeto, el valor, los plazos y los anexos del contrato.
+
+% ---------------------------------------------------------------------------
+\balance
+\begin{thebibliography}{00}
+\bibitem{onu_ods16} Naciones Unidas, ``Objetivo 16: Promover sociedades justas, pacíficas e inclusivas,'' Objetivos de Desarrollo Sostenible. [En línea]. Disponible: \url{https://www.un.org/sustainabledevelopment/es/peace-justice/}
+\bibitem{ley1712} Congreso de Colombia, ``Ley 1712 de 2014, por medio de la cual se crea la Ley de Transparencia y del Derecho de Acceso a la Información Pública Nacional,'' \textit{Diario Oficial}, no. 49.084, 6 mar. 2014.
+\bibitem{secop_dataset} Portal de Datos Abiertos de Colombia, ``SECOP II -- Contratos Electrónicos,'' conjunto jbjy-vk9h. [En línea]. Disponible: \url{https://www.datos.gov.co/d/jbjy-vk9h}
+\bibitem{fazekas2020} M. Fazekas y G. Kocsis, ``Uncovering high-level corruption: Cross-national objective corruption risk indicators using public procurement data,'' \textit{British J. Political Science}, vol. 50, no. 1, pp. 155--164, 2020.
+\bibitem{ley996} Congreso de Colombia, ``Ley 996 de 2005, por medio de la cual se reglamenta la elección de Presidente de la República (Ley de Garantías Electorales),'' \textit{Diario Oficial}, no. 46.102, 24 nov. 2005.
+\bibitem{dean2008} J. Dean y S. Ghemawat, ``MapReduce: Simplified data processing on large clusters,'' \textit{Commun. ACM}, vol. 51, no. 1, pp. 107--113, 2008.
+\bibitem{zaharia2012} M. Zaharia \textit{et al.}, ``Resilient distributed datasets: A fault-tolerant abstraction for in-memory cluster computing,'' en \textit{Proc. 9th USENIX Symp. Networked Systems Design and Implementation (NSDI)}, 2012, pp. 15--28.
+\bibitem{zaharia2016} M. Zaharia \textit{et al.}, ``Apache Spark: A unified engine for big data processing,'' \textit{Commun. ACM}, vol. 59, no. 11, pp. 56--65, 2016.
+\bibitem{armbrust2021} M. Armbrust, A. Ghodsi, R. Xin y M. Zaharia, ``Lakehouse: A new generation of open platforms that unify data warehousing and advanced analytics,'' en \textit{Proc. Conf. Innovative Data Systems Research (CIDR)}, 2021.
+\bibitem{iceberg} The Apache Software Foundation, ``Spec,'' \textit{Apache Iceberg}. [En línea]. Disponible: \url{https://iceberg.apache.org/spec/}
+\bibitem{grama2003} A. Grama, A. Gupta, G. Karypis y V. Kumar, \textit{Introduction to Parallel Computing}, 2nd ed. Addison-Wesley, 2003.
+\bibitem{python_threading} Python Software Foundation, ``threading -- Thread-based parallelism'' y ``concurrent.futures -- Launching parallel tasks,'' \textit{The Python Standard Library}, Python 3.12. [En línea]. Disponible: \url{https://docs.python.org/3.12/library/threading.html} y \url{https://docs.python.org/3.12/library/concurrent.futures.html}
+\bibitem{ley80} Congreso de Colombia, ``Ley 80 de 1993, por la cual se expide el Estatuto General de Contratación de la Administración Pública,'' \textit{Diario Oficial}, no. 41.094, 28 oct. 1993.
+\bibitem{amdahl1967} G. M. Amdahl, ``Validity of the single processor approach to achieving large scale computing capabilities,'' en \textit{Proc. AFIPS Spring Joint Computer Conf.}, 1967, pp. 483--485.
+\bibitem{gustafson1988} J. L. Gustafson, ``Reevaluating Amdahl's law,'' \textit{Commun. ACM}, vol. 31, no. 5, pp. 532--533, 1988.
+\bibitem{karpflatt1990} A. H. Karp y H. P. Flatt, ``Measuring parallel processor performance,'' \textit{Commun. ACM}, vol. 33, no. 5, pp. 539--543, 1990.
+\end{thebibliography}
+
+\end{document}

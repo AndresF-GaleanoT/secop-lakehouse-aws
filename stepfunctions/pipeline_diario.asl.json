@@ -1,0 +1,111 @@
+{
+  "Comment": "Pipeline diario SECOP: ingesta de los últimos 10 días (Lambda) -> bronze_to_silver (Glue) -> silver_to_gold (Glue) -> exporta la web (Lambda). Lo inicia EventBridge Scheduler a las 6:00 a. m. hora Colombia.",
+  "StartAt": "IngestBronze",
+  "States": {
+    "IngestBronze": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "secop-ingest",
+        "Payload": {
+          "lookback_days.$": "$.lookback_days"
+        }
+      },
+      "ResultSelector": {
+        "load_id.$": "$.Payload.load_id",
+        "records.$": "$.Payload.records",
+        "s3_prefix.$": "$.Payload.s3_prefix",
+        "seconds.$": "$.Payload.seconds"
+      },
+      "ResultPath": "$.ingest",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.TooManyRequestsException", "Lambda.Unknown", "States.Timeout"],
+          "IntervalSeconds": 30,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "HasNewRecords"
+    },
+    "HasNewRecords": {
+      "Type": "Choice",
+      "Choices": [
+        { "Variable": "$.ingest.records", "NumericGreaterThan": 0, "Next": "BronzeToSilver" }
+      ],
+      "Default": "NoNewData"
+    },
+    "NoNewData": {
+      "Type": "Succeed",
+      "Comment": "La API no publicó contratos en la ventana: no se corre Glue (ahorro de costos)."
+    },
+    "BronzeToSilver": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Comment": "Solo procesa la carpeta de esta carga; 2 workers bastan para unos días de datos.",
+      "Parameters": {
+        "JobName": "secop-bronze-to-silver",
+        "WorkerType": "G.1X",
+        "NumberOfWorkers": 2,
+        "Arguments": {
+          "--SOURCE_PATH.$": "States.Format('s3://secop-lake-811136731365/{}', $.ingest.s3_prefix)",
+          "--LOAD_ID.$": "$.ingest.load_id"
+        }
+      },
+      "ResultSelector": {
+        "JobRunId.$": "$.Id",
+        "Estado.$": "$.JobRunState",
+        "Segundos.$": "$.ExecutionTime"
+      },
+      "ResultPath": "$.bronze_to_silver",
+      "Retry": [
+        { "ErrorEquals": ["Glue.ConcurrentRunsExceededException"], "IntervalSeconds": 120, "MaxAttempts": 3, "BackoffRate": 2 }
+      ],
+      "Next": "SilverToGold"
+    },
+    "SilverToGold": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Parameters": {
+        "JobName": "secop-silver-to-gold"
+      },
+      "ResultSelector": {
+        "JobRunId.$": "$.Id",
+        "Estado.$": "$.JobRunState",
+        "Segundos.$": "$.ExecutionTime"
+      },
+      "ResultPath": "$.silver_to_gold",
+      "Retry": [
+        { "ErrorEquals": ["Glue.ConcurrentRunsExceededException"], "IntervalSeconds": 120, "MaxAttempts": 3, "BackoffRate": 2 }
+      ],
+      "Next": "ExportaWeb"
+    },
+    "ExportaWeb": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Consulta oro con Athena y deja los JSON de la web en s3://secop-web-811136731365/data/ (CloudFront los sirve).",
+      "Parameters": {
+        "FunctionName": "secop-web-export",
+        "Payload": {}
+      },
+      "ResultSelector": {
+        "generado.$": "$.Payload.generado",
+        "mb_escaneados_athena.$": "$.Payload.mb_escaneados_athena",
+        "segundos.$": "$.Payload.segundos"
+      },
+      "ResultPath": "$.exporta_web",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.TooManyRequestsException", "Lambda.Unknown", "States.Timeout"],
+          "IntervalSeconds": 30,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Done"
+    },
+    "Done": {
+      "Type": "Succeed"
+    }
+  }
+}

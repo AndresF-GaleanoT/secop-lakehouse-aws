@@ -1,0 +1,5 @@
+hilos,estado,tramos_ok,tramos_total,registros,paginas,tiempo_pared_s,suma_lambdas_s,tramo_mas_lento_s,fallos_reintentados,ejecucion,speedup,eficiencia
+1,SUCCEEDED,371,371,5698182,784,2672.5,7902.1,191.11,0,bench-hilos-1-20261111-195519,1.0,1.0
+2,SUCCEEDED,371,371,5698182,784,1564.9,4598.2,82.95,0,bench-hilos-2-20261111-204045,1.71,0.85
+4,SUCCEEDED,371,371,5698182,784,1438.8,4234.2,82.42,0,bench-hilos-4-20261111-210731,1.86,0.47
+8,SUCCEEDED,371,371,5698182,784,1491.5,4378.3,78.55,0,bench-hilos-8-20261111-213217,1.79,0.22

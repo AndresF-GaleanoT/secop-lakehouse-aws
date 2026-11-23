@@ -1,0 +1,353 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vigilancia ciudadana de la contratación pública · SECOP II</title>
+  <meta name="description" content="Todos los contratos públicos de Colombia en SECOP II desde 2015, limpios y actualizados cada día en AWS. Panorama, alertas de patrones irregulares por entidad y Ley de Garantías 2026.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Vigilancia ciudadana de la contratación pública · SECOP II">
+  <meta property="og:description" content="Busca una entidad pública de Colombia y mira qué patrones irregulares tienen sus contratos. Datos de SECOP II actualizados cada día.">
+  <meta property="og:locale" content="es_CO">
+  <meta name="theme-color" content="#004aad">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="estilos.css">
+  <script>document.documentElement.classList.add("js");</script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="saltar button-sm" href="#contenido">Saltar al contenido</a>
+
+  <header class="nav-envoltura">
+    <nav class="nav" aria-label="Secciones">
+      <a class="nav-marca title-4" href="#inicio">
+        <svg class="nav-logo" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="4" fill="#004aad"/><rect x="5" y="12" width="3" height="7" rx="1" fill="#fff"/><rect x="10.5" y="8" width="3" height="11" rx="1" fill="#fff"/><rect x="16" y="5" width="3" height="14" rx="1" fill="#fd6925"/></svg>
+        Vigilancia SECOP
+      </a>
+      <ul class="nav-enlaces title-4">
+        <li><a href="#panorama">Panorama</a></li>
+        <li><a href="#alertas">Alertas</a></li>
+        <li><a href="#ley">Ley de Garantías</a></li>
+        <li><a href="#como">Cómo funciona</a></li>
+      </ul>
+      <button class="nav-boton" type="button" aria-expanded="false" aria-controls="menu-movil" aria-label="Abrir menú">
+        <span></span><span></span>
+      </button>
+    </nav>
+  </header>
+
+  <div class="menu-movil" id="menu-movil" aria-hidden="true">
+    <ul class="heading-5">
+      <li style="--i:0"><a href="#panorama" tabindex="-1">Panorama</a></li>
+      <li style="--i:1"><a href="#alertas" tabindex="-1">Alertas</a></li>
+      <li style="--i:2"><a href="#ley" tabindex="-1">Ley de Garantías</a></li>
+      <li style="--i:3"><a href="#como" tabindex="-1">Cómo funciona</a></li>
+    </ul>
+  </div>
+
+  <main id="contenido">
+    <!-- Héroe -->
+    <section id="inicio" class="heroe contenedor">
+      <p class="caption-3 sobretitulo">Proyecto integrador · Universidad Santo Tomás, Tunja</p>
+      <h1 class="heading-1 heroe-titulo">Vigila los contratos <br class="salto-ancho">públicos de Colombia</h1>
+      <p class="body-3 heroe-sub">Todos los contratos de SECOP II desde 2015, como datos abiertos limpios, sin duplicados y actualizados cada mañana en AWS. Busca una entidad y mira qué patrones irregulares tienen sus contratos.</p>
+      <div class="heroe-acciones">
+        <a class="boton button-md" href="#buscador">Buscar una entidad</a>
+      </div>
+      <div class="heroe-cifra">
+        <p class="cifra-heroe" data-dato="contratos" aria-live="polite">&nbsp;</p>
+        <p class="caption-2 texto-2">contratos únicos analizados · último contrato firmado el <span data-dato="ultima-firma">…</span></p>
+      </div>
+      <p class="error-datos body-6" id="error-general" role="alert" hidden></p>
+    </section>
+
+    <section class="contenedor" aria-label="Cifras principales">
+      <div class="cifras">
+        <article class="tarjeta cifra-tarjeta revelar">
+          <h2 class="title-4">Valor contratado</h2>
+          <p class="cifra" data-dato="valor">&nbsp;</p>
+          <p class="caption-5" data-dato="valor-nota">&nbsp;</p>
+        </article>
+        <article class="tarjeta cifra-tarjeta revelar">
+          <h2 class="title-4">Contratos con al menos una alerta</h2>
+          <p class="cifra" data-dato="pct-alerta">&nbsp;</p>
+          <p class="caption-5" data-dato="pct-alerta-nota">&nbsp;</p>
+        </article>
+        <article class="tarjeta cifra-tarjeta revelar">
+          <h2 class="title-4">Contratación directa</h2>
+          <p class="cifra" data-dato="pct-directa">&nbsp;</p>
+          <p class="caption-5" data-dato="pct-directa-nota">&nbsp;</p>
+        </article>
+        <article class="tarjeta cifra-tarjeta revelar">
+          <h2 class="title-4">Última actualización</h2>
+          <p class="cifra" data-dato="actualizado">&nbsp;</p>
+          <p class="caption-5">Se actualiza cada día a las 6:00 a. m., hora de Colombia</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- 01 Panorama -->
+    <section id="panorama" class="seccion contenedor" aria-labelledby="t-panorama">
+      <header class="seccion-cabecera revelar">
+        <span class="insignia" aria-hidden="true">01</span>
+        <div>
+          <h2 class="heading-4" id="t-panorama">Panorama de la contratación</h2>
+          <p class="body-3">Cuánto contrata el Estado, en qué meses lo hace y cuánto se adjudica sin competencia.</p>
+        </div>
+      </header>
+
+      <div class="rejilla rejilla-2">
+        <article class="tarjeta revelar ancho-completo">
+          <header class="tarjeta-cabecera">
+            <h3 class="heading-6">Contratos firmados por año</h3>
+            <p class="caption-2">Cada barra es un año según la fecha de firma.</p>
+          </header>
+          <div class="lienzo cargando" id="g-anual" style="--alto:280px"></div>
+          <p class="nota caption-5" id="n-anual"></p>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-anual"></div></details>
+        </article>
+
+        <article class="tarjeta revelar ancho-completo">
+          <header class="tarjeta-cabecera">
+            <h3 class="heading-6">Mes a mes: cuándo se firma</h3>
+            <p class="caption-2" id="s-calor">Parte de los contratos de cada año que se firma en cada mes.</p>
+          </header>
+          <div class="lienzo cargando" id="g-calor" style="--alto:320px"></div>
+          <p class="nota caption-5" id="n-calor"></p>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-calor"></div></details>
+        </article>
+
+        <article class="tarjeta revelar">
+          <header class="tarjeta-cabecera">
+            <h3 class="heading-6">Contratación directa: muchos contratos, menos valor</h3>
+            <p class="caption-2">Parte de los contratos y del valor que se adjudica sin competencia.</p>
+          </header>
+          <div class="lienzo cargando" id="g-directa" style="--alto:160px"></div>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-directa"></div></details>
+        </article>
+
+        <article class="tarjeta revelar">
+          <header class="tarjeta-cabecera">
+            <h3 class="heading-6">Sectores con más valor contratado</h3>
+            <p class="caption-2">Los diez sectores con mayor valor desde 2015.</p>
+          </header>
+          <div class="lienzo cargando" id="g-sectores" style="--alto:360px"></div>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-sectores"></div></details>
+        </article>
+      </div>
+    </section>
+
+    <!-- Frase -->
+    <section class="frase contenedor" aria-label="Idea central">
+      <p class="heading-2" id="frase">Cada contrato del Estado ya es un dato abierto. Ahora también es fácil de vigilar.</p>
+    </section>
+
+    <!-- 02 Alertas -->
+    <section id="alertas" class="seccion contenedor" aria-labelledby="t-alertas">
+      <header class="seccion-cabecera revelar">
+        <span class="insignia" aria-hidden="true">02</span>
+        <div>
+          <h2 class="heading-4" id="t-alertas">Patrones irregulares por entidad y departamento</h2>
+          <p class="body-3">Nueve alertas por contrato ayudan a decidir qué revisar primero. No califican conductas: un contrato con alertas puede tener una explicación válida.</p>
+        </div>
+      </header>
+
+      <div class="rejilla rejilla-2">
+        <article class="tarjeta revelar">
+          <header class="tarjeta-cabecera">
+            <h3 class="heading-6">Mapa por departamento</h3>
+            <p class="caption-2">Cada cuadro es un departamento, en una ubicación aproximada. Toca uno para filtrar el ranking.</p>
+          </header>
+          <div class="segmentos" role="group" aria-label="Dato del mapa" id="metricas-mapa">
+            <button type="button" class="button-sm" data-metrica="pct_contratos_con_alerta" aria-pressed="true">Con alerta</button>
+            <button type="button" class="button-sm" data-metrica="pct_contratacion_directa" aria-pressed="false">Directa</button>
+            <button type="button" class="button-sm" data-metrica="contratos" aria-pressed="false">Contratos</button>
+          </div>
+          <div class="lienzo cargando" id="g-mapa" style="--alto:420px"></div>
+          <p class="nota caption-5" id="n-mapa"></p>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-mapa"></div></details>
+        </article>
+
+        <article class="tarjeta revelar">
+          <header class="tarjeta-cabecera">
+            <h3 class="heading-6">Qué tan común es cada alerta</h3>
+            <p class="caption-2">Porcentaje de todos los contratos que activa cada alerta.</p>
+          </header>
+          <div class="lienzo cargando" id="g-alertas" style="--alto:420px"></div>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-alertas-tabla"></div></details>
+        </article>
+
+        <article class="tarjeta revelar ancho-completo" id="buscador">
+          <header class="tarjeta-cabecera">
+            <h3 class="heading-6">Busca una entidad</h3>
+            <p class="caption-2" id="s-buscador">Escribe el nombre o el NIT de la entidad.</p>
+          </header>
+          <div class="campo">
+            <label class="title-4" for="q">Nombre o NIT</label>
+            <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Por ejemplo: Tunja o INPEC" aria-describedby="ayuda-q" aria-controls="resultados" disabled>
+            <p class="caption-5 texto-3" id="ayuda-q">Escribe al menos 3 letras. Enter abre el primer resultado.</p>
+          </div>
+          <ul class="resultados" id="resultados" aria-label="Resultados"></ul>
+          <div class="sugerencias" id="sugerencias"></div>
+          <div id="ficha" class="ficha" hidden tabindex="-1" style="margin-top:var(--e-400)"></div>
+        </article>
+
+        <article class="tarjeta revelar ancho-completo" id="ranking">
+          <header class="tarjeta-cabecera">
+            <h3 class="heading-6">Ranking de entidades</h3>
+            <p class="caption-2">Entidades con 20 o más contratos, de mayor a menor porcentaje de contratos con alerta. Toca una fila para ver su ficha.</p>
+          </header>
+          <div class="filtros">
+            <div class="campo">
+              <label class="title-4" for="f-depto">Departamento</label>
+              <select id="f-depto" disabled><option value="">Todo el país</option></select>
+            </div>
+          </div>
+          <div class="tabla-envoltura" id="t-ranking"><div class="cargando" style="--alto:320px"></div></div>
+          <div class="tabla-pie caption-5">
+            <span id="ranking-cuenta"></span>
+            <button type="button" class="boton-secundario button-sm" id="ranking-mas" hidden>Mostrar 20 más</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 03 Ley de Garantías -->
+    <section id="ley" class="seccion contenedor" aria-labelledby="t-ley">
+      <header class="seccion-cabecera revelar">
+        <span class="insignia" aria-hidden="true">03</span>
+        <div>
+          <h2 class="heading-4" id="t-ley">Ley de Garantías 2026</h2>
+          <p class="body-3">Del 31 de enero al 21 de junio de 2026 la contratación directa estuvo restringida por las elecciones (Ley 996 de 2005, art. 33). Solo se permitía con una causal de excepción, como una emergencia, la defensa nacional o la salud.</p>
+        </div>
+      </header>
+
+      <div class="cifras" id="ley-cifras" style="margin-bottom:var(--e-300)">
+        <article class="tarjeta cifra-tarjeta revelar">
+          <h3 class="title-4">Mes antes de la restricción</h3>
+          <p class="cifra" data-dato="ley-antes">&nbsp;</p>
+          <p class="caption-5">contratos directos sin causal de excepción, del 31 dic. 2025 al 30 ene. 2026</p>
+        </article>
+        <article class="tarjeta cifra-tarjeta revelar">
+          <h3 class="title-4">Mismo mes de 2025, sin elecciones</h3>
+          <p class="cifra" data-dato="ley-2025">&nbsp;</p>
+          <p class="caption-5">contratos directos sin causal de excepción, del 31 dic. 2024 al 30 ene. 2025</p>
+        </article>
+        <article class="tarjeta cifra-tarjeta revelar">
+          <h3 class="title-4">Diferencia</h3>
+          <p class="cifra" data-dato="ley-veces">&nbsp;</p>
+          <p class="caption-5">más contratación directa sin excepción justo antes de la restricción</p>
+        </article>
+        <article class="tarjeta cifra-tarjeta revelar">
+          <h3 class="title-4">Durante la restricción</h3>
+          <p class="cifra" data-dato="ley-durante">&nbsp;</p>
+          <p class="caption-5">contratos directos sin causal visible, del 31 ene. al 21 jun. 2026</p>
+        </article>
+      </div>
+
+      <div class="rejilla">
+        <article class="tarjeta revelar">
+          <header class="tarjeta-cabecera">
+            <h3 class="heading-6">Contratos directos por semana</h3>
+            <p class="caption-2">Con y sin causal de excepción. La franja marca la restricción.</p>
+          </header>
+          <ul class="leyenda caption-4">
+            <li><span class="clave-linea" style="background:var(--serie-2)"></span>Sin causal de excepción</li>
+            <li><span class="clave-linea" style="background:var(--serie-1)"></span>Con causal de excepción</li>
+          </ul>
+          <div class="lienzo cargando" id="g-ley" style="--alto:320px"></div>
+          <p class="nota caption-5" id="n-ley"></p>
+          <details class="tabla-vista"><summary class="button-sm">Ver como tabla</summary><div class="tabla-envoltura" id="t-ley"></div></details>
+        </article>
+
+        <article class="tarjeta revelar">
+          <header class="tarjeta-cabecera">
+            <h3 class="heading-6">Entidades con más contratos directos sin causal durante la restricción</h3>
+            <p class="caption-2">Es un patrón para revisar: la causal pudo publicarse mal. Toca una fila para ver la ficha de la entidad.</p>
+          </header>
+          <div class="tabla-envoltura" id="t-ley-entidades"><div class="cargando" style="--alto:320px"></div></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 04 Cómo funciona -->
+    <section id="como" class="seccion contenedor" aria-labelledby="t-como">
+      <header class="seccion-cabecera revelar">
+        <span class="insignia" aria-hidden="true">04</span>
+        <div>
+          <h2 class="heading-4" id="t-como">Cómo funciona</h2>
+          <p class="body-3">Una cadena sin servidores en AWS descarga, limpia y resume los contratos cada día. Esta página lee el resultado directamente de Amazon S3.</p>
+        </div>
+      </header>
+
+      <div class="rejilla">
+        <article class="tarjeta revelar">
+          <ol class="pasos">
+            <li class="paso">
+              <h3 class="title-3">Descarga</h3>
+              <p class="body-6">Una función <span class="servicio">Lambda</span> trae de datos.gov.co los contratos de los últimos 10 días con 4 hilos en paralelo y los guarda en <span class="servicio">S3</span> (capa bronce).</p>
+            </li>
+            <li class="paso">
+              <h3 class="title-3">Limpieza</h3>
+              <p class="body-6">Un job de <span class="servicio">Glue</span> con Spark tipa los datos, quita duplicados y deja 16 columnas en tablas Iceberg (capa plata).</p>
+            </li>
+            <li class="paso">
+              <h3 class="title-3">Resumen</h3>
+              <p class="body-6">Otro job de <span class="servicio">Glue</span> calcula las alertas, los rankings y la Ley de Garantías (capa oro).</p>
+            </li>
+            <li class="paso">
+              <h3 class="title-3">Exportación</h3>
+              <p class="body-6">Una función <span class="servicio">Lambda</span> consulta la capa oro con <span class="servicio">Athena</span> y guarda archivos JSON en <span class="servicio">S3</span>.</p>
+            </li>
+            <li class="paso">
+              <h3 class="title-3">Publicación</h3>
+              <p class="body-6"><span class="servicio">CloudFront</span> entrega esta página y esos JSON. Las visitas no consultan la base de datos, así que el costo no sube con el tráfico.</p>
+            </li>
+          </ol>
+          <p class="nota caption-2">Step Functions encadena los pasos y EventBridge Scheduler los inicia cada día a las 6:00 a. m., hora de Colombia. <span id="meta-exportacion"></span></p>
+        </article>
+
+        <div class="cifras">
+          <article class="tarjeta cifra-tarjeta revelar">
+            <h3 class="title-4">Costo por actualización</h3>
+            <p class="cifra">US$0,07</p>
+            <p class="caption-5">medido en la carga diaria automática, con freno a los US$15 al mes</p>
+          </article>
+          <article class="tarjeta cifra-tarjeta revelar">
+            <h3 class="title-4">Descarga en paralelo</h3>
+            <p class="cifra">1,86×</p>
+            <p class="caption-5">más rápida con 4 hilos por Lambda: la carga completa bajó de 44,5 a 24 minutos</p>
+          </article>
+          <article class="tarjeta cifra-tarjeta revelar">
+            <h3 class="title-4">Valores imposibles</h3>
+            <p class="cifra" data-dato="no-confiables">&nbsp;</p>
+            <p class="caption-5">contratos de más de un billón de pesos quedan fuera de las sumas por ser errores de digitación</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie-rejilla">
+      <div class="pie-bloque">
+        <p class="title-3" style="color:var(--texto-1)">Sistema para la vigilancia ciudadana de la contratación pública en Colombia con datos de SECOP II</p>
+        <p class="body-6">Andrés Felipe Galeano Téllez · Oscar Esteban Arias López · Juan David Sandoval Bello · Yeikov Jared Ramos Sánchez</p>
+        <p class="body-6">Docentes: Zalma Valentina Moreno Galeano · Ivan Felipe Mariño Barreto · Julián David Pareja Garzón</p>
+        <p class="body-6">Proyecto integrador · Facultad de Ingeniería de Datos e Inteligencia Artificial · Universidad Santo Tomás, Tunja · Objetivos de Desarrollo Sostenible 16 y 9</p>
+      </div>
+      <div class="pie-bloque">
+        <p class="body-6">Datos: <a href="https://www.datos.gov.co/d/jbjy-vk9h" rel="noopener">SECOP II, Contratos Electrónicos</a>, Agencia Nacional de Contratación Pública, Colombia Compra Eficiente. Licencia <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.es" rel="noopener license">CC BY-SA 4.0</a>. Los datos de esta página se limpiaron, se quitaron duplicados y se resumieron; se comparten con la misma licencia.</p>
+        <p class="body-6">Código: <a href="https://github.com/AndresF-GaleanoT/secop-lakehouse-aws" rel="noopener">github.com/AndresF-GaleanoT/secop-lakehouse-aws</a>, licencia <a href="https://www.gnu.org/licenses/agpl-3.0.html" rel="noopener license">GNU AGPL 3.0</a>.</p>
+        <p class="body-6">Las alertas marcan patrones fuera de lo habitual para priorizar la revisión. No califican conductas.</p>
+        <p class="body-6">Esta página no usa cookies ni herramientas de rastreo.</p>
+        <p class="body-6"><a href="#inicio">Volver arriba</a></p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

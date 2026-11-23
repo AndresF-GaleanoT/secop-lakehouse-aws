@@ -1,0 +1,30 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
+-- Calidad de plata: nulos por columna y reglas de consistencia (recorre toda la tabla en Athena).
+SELECT
+  COUNT(*)                                                         AS total_registros,
+  COUNT(DISTINCT id_contrato)                                      AS ids_distintos,
+  SUM(CASE WHEN id_contrato IS NULL THEN 1 ELSE 0 END)             AS id_contrato,
+  SUM(CASE WHEN nit_entidad IS NULL THEN 1 ELSE 0 END)             AS nit_entidad,
+  SUM(CASE WHEN nombre_entidad IS NULL THEN 1 ELSE 0 END)          AS nombre_entidad,
+  SUM(CASE WHEN departamento IS NULL THEN 1 ELSE 0 END)            AS departamento,
+  SUM(CASE WHEN sector IS NULL THEN 1 ELSE 0 END)                  AS sector,
+  SUM(CASE WHEN modalidad_contratacion IS NULL THEN 1 ELSE 0 END)  AS modalidad_contratacion,
+  SUM(CASE WHEN tipo_contrato IS NULL THEN 1 ELSE 0 END)           AS tipo_contrato,
+  SUM(CASE WHEN documento_proveedor IS NULL THEN 1 ELSE 0 END)     AS documento_proveedor,
+  SUM(CASE WHEN fecha_firma IS NULL THEN 1 ELSE 0 END)             AS fecha_firma,
+  SUM(CASE WHEN fecha_inicio IS NULL THEN 1 ELSE 0 END)            AS fecha_inicio,
+  SUM(CASE WHEN fecha_fin IS NULL THEN 1 ELSE 0 END)               AS fecha_fin,
+  SUM(CASE WHEN dias_adicionados IS NULL THEN 1 ELSE 0 END)        AS dias_adicionados,
+  SUM(CASE WHEN valor_contrato IS NULL THEN 1 ELSE 0 END)          AS valor_contrato,
+  SUM(CASE WHEN valor_anticipo IS NULL THEN 1 ELSE 0 END)          AS valor_anticipo,
+  SUM(CASE WHEN codigo_unspsc IS NULL THEN 1 ELSE 0 END)           AS codigo_unspsc,
+  SUM(CASE WHEN justificacion_modalidad IS NULL THEN 1 ELSE 0 END) AS justificacion_modalidad,
+  SUM(CASE WHEN valor_contrato < 0 THEN 1 ELSE 0 END)              AS regla_valor_negativo,
+  SUM(CASE WHEN valor_contrato = 0 THEN 1 ELSE 0 END)              AS regla_valor_cero,
+  SUM(CASE WHEN NOT valor_confiable THEN 1 ELSE 0 END)             AS regla_valor_no_confiable,
+  SUM(CASE WHEN fecha_fin < fecha_inicio THEN 1 ELSE 0 END)        AS regla_fin_antes_de_inicio,
+  SUM(CASE WHEN fecha_firma > current_date THEN 1 ELSE 0 END)      AS regla_firma_futura,
+  SUM(CASE WHEN year(fecha_firma) < 2015 THEN 1 ELSE 0 END)        AS regla_firma_antes_2015,
+  MIN(fecha_firma)                                                 AS fecha_firma_min,
+  MAX(fecha_firma)                                                 AS fecha_firma_max
+FROM silver_contratos

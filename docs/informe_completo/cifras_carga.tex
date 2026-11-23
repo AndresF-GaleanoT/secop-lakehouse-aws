@@ -1,0 +1,15 @@
+% Cifras de la carga histórica a bronce (11 de noviembre de 2026), calculadas con los resultados que
+% devolvió cada invocación de la Lambda en Step Functions y con el listado de S3.
+\newcommand{\totalContratos}{5.687.382}
+\newcommand{\totalTramos}{284 (282 con datos; agosto y octubre de 2015 no tienen contratos)}
+\newcommand{\totalArchivos}{731 archivos \code{.jsonl.gz}}
+\newcommand{\tamanoBronce}{2,31 GB}
+\newcommand{\duracionCarga}{37 minutos (14:20 a 14:57)}
+\newcommand{\fallosCarga}{0 (5 errores de red de la API, todos recuperados con reintentos)}
+\newcommand{\cifrasNota}{%
+El total coincide \textbf{exactamente} con el número de contratos que reporta la API agrupando por
+modalidad el mismo día (5.687.382): la capa bronce tiene el dataset completo, sin pérdidas ni duplicados
+entre tramos. La carga se hizo en dos ejecuciones: la primera, secuencial, descargó de junio de 2015 a
+julio de 2021 (74 meses) y se detuvo a propósito para relanzar el resto con la versión paralela, que
+completó los 210 tramos restantes en 27 minutos. El tramo más lento fue enero de 2022 (294.128 contratos
+en 250 segundos), muy por debajo del límite de 15 minutos de Lambda.}
