@@ -274,12 +274,12 @@ function tablaSimple(contenedor, columnas, filas, alElegir) {
   const tabla = h(
     "table",
     { class: "tabla" },
-    h("thead", {}, h("tr", {}, columnas.map((c) => h("th", { scope: "col", class: c.num ? "n" : null, texto: c.titulo })))),
+    h("thead", {}, h("tr", {}, columnas.map((c) => h("th", { scope: "col", class: clasesColumna(c), texto: c.titulo })))),
     h(
       "tbody",
       {},
       filas.map((f) => {
-        const tr = h("tr", {}, columnas.map((c) => h("td", { class: c.num ? "n" : null, texto: c.formato(f) })));
+        const tr = h("tr", {}, columnas.map((c) => h("td", { class: clasesColumna(c), texto: c.formato(f) })));
         if (alElegir) activarFila(tr, () => alElegir(f));
         return tr;
       })
@@ -287,6 +287,9 @@ function tablaSimple(contenedor, columnas, filas, alElegir) {
   );
   contenedor.replaceChildren(tabla);
 }
+
+// "n": número alineado a la derecha; "col-nombre": columna de nombres con ancho mínimo para no partirse.
+const clasesColumna = (c) => [c.num ? "n" : null, c.nombre ? "col-nombre" : null].filter(Boolean).join(" ") || null;
 
 function activarFila(tr, accion) {
   tr.classList.add("accionable");
@@ -554,7 +557,7 @@ function dibujarSectores(sectores) {
     tip: (d) => [oracion(d.sector), [{ valor: pesos(d.valor_total), etiqueta: "valor contratado" }, { valor: entero(d.contratos), etiqueta: "contratos" }]],
   });
   tablaSimple($("#t-sectores"), [
-    { titulo: "Sector", formato: (d) => oracion(d.sector) },
+    { titulo: "Sector", nombre: true, formato: (d) => oracion(d.sector) },
     { titulo: "Contratos", num: true, formato: (d) => entero(d.contratos) },
     { titulo: "Contratación directa", num: true, formato: (d) => pct((100 * d.contratos_directa) / d.contratos) },
     { titulo: "Valor contratado", num: true, formato: (d) => pesos(d.valor_total) },
@@ -661,7 +664,7 @@ function dibujarMapa(deptos) {
   }
 
   tablaSimple($("#t-mapa"), [
-    { titulo: "Departamento", formato: (d) => titulo(d.departamento) },
+    { titulo: "Departamento", nombre: true, formato: (d) => titulo(d.departamento) },
     { titulo: "Contratos", num: true, formato: (d) => entero(d.contratos) },
     { titulo: "Con alguna alerta", num: true, formato: (d) => pct(d.pct_contratos_con_alerta) },
     { titulo: "Contratación directa", num: true, formato: (d) => pct(d.pct_contratacion_directa) },
@@ -680,7 +683,7 @@ function dibujarAlertasNacionales(totales) {
     tip: (it) => [it.nombre, [{ valor: pct(it.v), etiqueta: "de los contratos" }, { valor: entero(it.n), etiqueta: "contratos" }]],
   });
   tablaSimple($("#t-alertas-tabla"), [
-    { titulo: "Alerta", formato: (it) => it.nombre },
+    { titulo: "Alerta", nombre: true, formato: (it) => it.nombre },
     { titulo: "Qué marca", formato: (it) => it.desc },
     { titulo: "Contratos", num: true, formato: (it) => entero(it.n) },
     { titulo: "Porcentaje", num: true, formato: (it) => pct(it.v) },
@@ -1136,7 +1139,7 @@ function dibujarLey(diario, periodos) {
 
   const top = [...entidades].filter((e) => e.ley_sin_excepcion_restriccion > 0).sort((a, b) => b.ley_sin_excepcion_restriccion - a.ley_sin_excepcion_restriccion).slice(0, 10);
   tablaSimple($("#t-ley-entidades"), [
-    { titulo: "Entidad", formato: (e) => e._nombre },
+    { titulo: "Entidad", nombre: true, formato: (e) => e._nombre },
     { titulo: "Departamento", formato: (e) => titulo(e.departamento) },
     { titulo: "Sin causal", num: true, formato: (e) => entero(e.ley_sin_excepcion_restriccion) },
     { titulo: "Con causal", num: true, formato: (e) => entero(e.ley_exceptuados_restriccion) },

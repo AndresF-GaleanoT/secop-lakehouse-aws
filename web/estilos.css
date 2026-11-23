@@ -387,9 +387,11 @@ a {
   color: var(--texto-2);
 }
 
+/* Cada tarjeta conserva su alto: una corta al lado de una larga no se estira en blanco. */
 .rejilla {
   display: grid;
   gap: var(--e-300);
+  align-items: start;
 }
 
 @media (min-width: 960px) {
@@ -850,6 +852,30 @@ svg .plano:focus-visible + .foco-plano { stroke: var(--anillo); stroke-width: 2;
 }
 
 .tabla tr:last-child td { border-bottom: 0; }
+
+/* La primera columna (nombre) queda fija a la izquierda y con ancho suficiente: si la tabla no cabe,
+   los números se desplazan por debajo y el nombre nunca se corta. */
+.tabla th:first-child,
+.tabla td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--superficie);
+  box-shadow: 1px 0 0 var(--borde);
+}
+
+.tabla th:first-child {
+  background: var(--superficie-2);
+}
+
+.tabla tbody tr.accionable:hover td:first-child,
+.tabla tbody tr.accionable:focus-visible td:first-child {
+  background: var(--superficie-2);
+}
+
+.tabla .col-nombre {
+  min-width: 176px;
+}
 
 .tabla th {
   font-size: 12px;
