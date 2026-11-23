@@ -34,11 +34,12 @@ resource "aws_budgets_budget" "secop" {
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
 
-  # Cuenta el gasto real: excluye créditos y reembolsos.
-  cost_types {
-    include_credit = false
-    include_refund = false
-  }
+  # En AWS el presupuesto usa los tipos de costo por defecto, que incluyen créditos y reembolsos.
+  # Para medir el gasto bruto (el freno saltaría antes si la cuenta usa créditos), descomenta:
+  # cost_types {
+  #   include_credit = false
+  #   include_refund = false
+  # }
 
   dynamic "notification" {
     for_each = [50, 80, 100]

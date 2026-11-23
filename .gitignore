@@ -23,3 +23,5 @@ web/data/
 
 # Entregas anteriores: se guardan en el disco, no en el repositorio
 entrega/
+terraform/*.tfplan
+terraform/plan.json

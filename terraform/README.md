@@ -14,12 +14,22 @@ escribió aquí, recurso por recurso.
 | `glue.tf` | Base `secop_lakehouse_db` y jobs `secop-bronze-to-silver` (10 workers) y `secop-silver-to-gold` (5 workers), Glue 5.0, Flex, Iceberg |
 | `orquestacion.tf` | Step Functions `secop-solo-bronce` y `secop-pipeline-diario`, y el horario `secop-pipeline-diario-6am` (EventBridge Scheduler, 6:00 a. m. hora Colombia) |
 | `consumo_y_costos.tf` | Workgroup de Athena `secop` y presupuesto `limite-secop-15usd` (alertas 50/80/100 % y freno automático al 100 %) |
+| `web.tf` | Web de resultados: bucket `secop-web-<cuenta>` (privado, SSE-S3, solo CloudFront lo lee), Origin Access Control, distribución de CloudFront y Lambda `secop-web-export` con su rol |
 | `imports.tf` | Bloques `import {}` que adoptan los recursos que ya existen |
 
 No se declaran (a propósito):
 - Las **tablas** `silver_contratos` y `gold_*`: las crean los jobs de Spark con Iceberg.
 - Los **datos** de `bronze/`, `silver/` y `gold/`.
 - El bucket `aws-glue-assets-…` (lo crea la consola de Glue); solo se gestionan los dos scripts que contiene.
+
+## Estado actual
+
+Aplicado el 23 de noviembre de 2026: 40 recursos adoptados con los bloques `import {}`, 7 sincronizados
+con el repositorio (código de las dos Lambdas, scripts de Glue y descripción de las máquinas de estado) y
+`terraform plan` sin cambios. El estado queda en `terraform/terraform.tfstate` (local y fuera del
+repositorio, porque contiene el token de datos.gov.co); para trabajar en equipo conviene moverlo al backend
+S3 de `versions.tf`. Las etiquetas por defecto y los `cost_types` del presupuesto están comentados para no
+cambiar lo que ya existe; ver los comentarios en `versions.tf` y `consumo_y_costos.tf`.
 
 ## Uso
 

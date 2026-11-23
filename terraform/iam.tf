@@ -106,9 +106,10 @@ resource "aws_iam_role_policy" "sfn_invocar_lambda" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
+      Sid      = "InvocarLambdasDelPipeline"
       Effect   = "Allow"
       Action   = "lambda:InvokeFunction"
-      Resource = aws_lambda_function.ingest.arn
+      Resource = [aws_lambda_function.ingest.arn, aws_lambda_function.web_export.arn]
     }]
   })
 }

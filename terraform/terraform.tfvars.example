@@ -9,5 +9,5 @@ budget_emails = ["<tu-correo@ejemplo.com>"]
 # Opcionales (ya tienen valor por defecto):
 # region           = "us-east-1"
 # parallel_pages   = 4
-# lookback_days    = 10
+# lookback_days    = 90
 # budget_limit_usd = 15

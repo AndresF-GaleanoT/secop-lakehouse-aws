@@ -24,12 +24,14 @@ terraform {
 provider "aws" {
   region = var.region
 
-  default_tags {
-    tags = {
-      Proyecto = "secop-lakehouse"
-      Gestion  = "terraform"
-    }
-  }
+  # Etiquetas para todos los recursos: desactivadas para adoptar la infraestructura sin modificarla.
+  # Al activarlas, el siguiente apply etiqueta todo (útil para filtrar costos por proyecto).
+  # default_tags {
+  #   tags = {
+  #     Proyecto = "secop-lakehouse"
+  #     Gestion  = "terraform"
+  #   }
+  # }
 }
 
 data "aws_caller_identity" "actual" {}

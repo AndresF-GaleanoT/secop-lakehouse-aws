@@ -18,3 +18,11 @@ output "solo_bronce_arn" {
 output "athena_workgroup" {
   value = aws_athena_workgroup.secop.name
 }
+
+output "web_url" {
+  value = "https://${aws_cloudfront_distribution.web.domain_name}"
+}
+
+output "web_distribution_id" {
+  value = aws_cloudfront_distribution.web.id
+}

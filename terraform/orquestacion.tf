@@ -36,7 +36,7 @@ resource "aws_scheduler_schedule" "pipeline_diario" {
   target {
     arn      = aws_sfn_state_machine.pipeline_diario.arn
     role_arn = aws_iam_role.scheduler.arn
-    input    = jsonencode({ lookback_days = var.lookback_days })
+    input    = "{\"lookback_days\": ${var.lookback_days}}" # mismo texto que guarda AWS
 
     retry_policy {
       maximum_retry_attempts       = 2

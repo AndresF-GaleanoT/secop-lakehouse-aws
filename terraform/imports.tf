@@ -132,3 +132,45 @@ import {
   to = aws_budgets_budget_action.freno
   id = "811136731365:c45bc528-d4c1-4a9d-88ce-658c65bd8c29:limite-secop-15usd"
 }
+
+# Web de resultados (creada con la AWS CLI el 23 de noviembre de 2026)
+import {
+  to = aws_s3_bucket.web
+  id = "secop-web-811136731365"
+}
+import {
+  to = aws_s3_bucket_server_side_encryption_configuration.web
+  id = "secop-web-811136731365"
+}
+import {
+  to = aws_s3_bucket_public_access_block.web
+  id = "secop-web-811136731365"
+}
+import {
+  to = aws_s3_bucket_policy.web
+  id = "secop-web-811136731365"
+}
+import {
+  to = aws_cloudfront_origin_access_control.web
+  id = "E31H6LJ20VRCXC"
+}
+import {
+  to = aws_cloudfront_distribution.web
+  id = "EXY065CPYI3J"
+}
+import {
+  to = aws_iam_role.web_export
+  id = "secop-web-export"
+}
+import {
+  to = aws_iam_role_policy_attachment.web_export_logs
+  id = "secop-web-export/arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+import {
+  to = aws_iam_role_policy.web_export
+  id = "secop-web-export:exportar-oro-a-web"
+}
+import {
+  to = aws_lambda_function.web_export
+  id = "secop-web-export"
+}
