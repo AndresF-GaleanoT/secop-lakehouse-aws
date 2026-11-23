@@ -1191,9 +1191,20 @@ function configurarNav() {
   ["panorama", "alertas", "ley", "como"].forEach((id) => observador.observe(document.getElementById(id)));
 }
 
+// Las secciones suben y aparecen al entrar en pantalla. El contenido nunca se queda oculto: lo que ya se
+// ve al cargar aparece de una vez, y si el navegador no avisa intersecciones (pestaña en segundo plano,
+// navegador viejo) todo se muestra a los 2,5 s.
 function configurarRevelar() {
+  const nodos = [...document.querySelectorAll(".revelar")];
+  const mostrarTodo = () => nodos.forEach((n) => n.classList.add("visible"));
+  if (!("IntersectionObserver" in window)) {
+    mostrarTodo();
+    return;
+  }
+  let respondio = false;
   const observador = new IntersectionObserver(
     (entradas) => {
+      respondio = true;
       for (const en of entradas) {
         if (en.isIntersecting) {
           en.target.classList.add("visible");
@@ -1203,7 +1214,13 @@ function configurarRevelar() {
     },
     { threshold: 0.08 }
   );
-  document.querySelectorAll(".revelar").forEach((n) => observador.observe(n));
+  for (const n of nodos) {
+    if (n.getBoundingClientRect().top < innerHeight) n.classList.add("visible");
+    else observador.observe(n);
+  }
+  setTimeout(() => {
+    if (!respondio) mostrarTodo();
+  }, 2500);
 }
 
 // La frase grande se enciende palabra por palabra al cruzar una línea a 70 % de la pantalla.

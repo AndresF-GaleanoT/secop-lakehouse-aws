@@ -12,6 +12,7 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import time
 from pathlib import Path
 
 import boto3
@@ -54,7 +55,8 @@ def invalidar(distribucion: str) -> str:
         DistributionId=distribucion,
         InvalidationBatch={
             "Paths": {"Quantity": 1, "Items": ["/*"]},
-            "CallerReference": f"publicar-web-{Path(__file__).stat().st_mtime_ns}",
+            # Debe ser única en cada llamada: si se repite, CloudFront devuelve la invalidación anterior.
+            "CallerReference": f"publicar-web-{time.time_ns()}",
         },
     )
     return respuesta["Invalidation"]["Id"]
