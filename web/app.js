@@ -734,19 +734,14 @@ function configurarBuscador() {
     }
     ayuda.textContent = encontrados.length > 8 ? `${entero(encontrados.length)} entidades coinciden; estas son las 8 con más contratos.` : `${entero(encontrados.length)} ${encontrados.length === 1 ? "entidad coincide" : "entidades coinciden"}.`;
     for (const e of encontrados.slice(0, 8)) {
-      lista.append(
-        h(
-          "li",
-          {},
-          h(
-            "button",
-            { type: "button", class: "resultado", onclick: null },
-            h("span", { class: "body-5", texto: e._nombre }),
-            h("span", { class: "caption-5", texto: `${titulo(e.departamento)} · NIT ${e._nit || SD} · ${entero(e.contratos)} contratos` })
-          )
-        )
+      const boton = h(
+        "button",
+        { type: "button", class: "resultado" },
+        h("span", { class: "body-5", texto: e._nombre }),
+        h("span", { class: "caption-5", texto: `${titulo(e.departamento)} · NIT ${e._nit || SD} · ${entero(e.contratos)} contratos` })
       );
-      lista.lastChild.firstChild.addEventListener("click", () => mostrarFicha(e));
+      boton.addEventListener("click", () => mostrarFicha(e));
+      lista.append(h("li", {}, boton));
     }
   };
 
@@ -1154,7 +1149,7 @@ function llenar(clave, valor) {
   });
 }
 
-const CLAVES_TOTALES = ["contratos", "valor_total", "contratos_con_alerta", "contratos_contratacion_directa", "contratos_valor_no_confiable", ...ALERTAS.map(([k]) => `contratos_${k}`)];
+const CLAVES_TOTALES = ["contratos", "valor_total", "contratos_con_alerta", "contratos_valor_no_confiable", ...ALERTAS.map(([k]) => `contratos_${k}`)];
 
 function textoExportacion(meta) {
   const generado = new Date(meta.generado);
@@ -1168,7 +1163,6 @@ function llenarInicio({ meta, resumen, ley_periodos }, totales) {
   llenar("ultima-firma", fechaCorta(fecha(resumen.ultima_fecha_firma)));
   llenar("valor", `$${nf1.format(totales.valor_total / 1e12)} billones`);
   llenar("pct-alerta", pct((100 * totales.contratos_con_alerta) / totales.contratos));
-  llenar("pct-directa", pct((100 * totales.contratos_contratacion_directa) / totales.contratos));
   llenar("n-entidades", entero(meta.archivos?.entidades?.filas));
   const p = Object.fromEntries(ley_periodos.map((r) => [r.periodo.slice(0, 1), r]));
   const antes = p["1"]?.directa_sin_excepcion;

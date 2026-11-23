@@ -159,13 +159,11 @@ a {
 /* ---------------------------------------------------------------- Estilos de texto */
 .heading-1 { font-size: 36px; line-height: 40px; font-weight: 600; }
 .heading-2 { font-size: 30px; line-height: 36px; font-weight: 600; }
-.heading-4 { font-size: 24px; line-height: 32px; font-weight: 600; }
 .heading-5 { font-size: 24px; line-height: 32px; font-weight: 600; }
 .heading-6 { font-size: 20px; line-height: 28px; font-weight: 600; }
 .title-3 { font-size: 16px; line-height: 24px; font-weight: 500; }
 .title-4 { font-size: 14px; line-height: 20px; font-weight: 500; }
 .title-5 { font-size: 12px; line-height: 16px; font-weight: 500; }
-.body-1 { font-size: 16px; line-height: 24px; font-weight: 600; }
 .body-3 { font-size: 16px; line-height: 24px; font-weight: 400; }
 .body-4 { font-size: 14px; line-height: 20px; font-weight: 600; }
 .body-5 { font-size: 14px; line-height: 20px; font-weight: 500; }
@@ -182,7 +180,6 @@ a {
 @media (min-width: 768px) {
   .heading-1 { font-size: 60px; line-height: 60px; }
   .heading-2 { font-size: 48px; line-height: 48px; }
-  .heading-4 { font-size: 30px; line-height: 36px; }
   .cifra-heroe { font-size: 60px; }
 }
 
