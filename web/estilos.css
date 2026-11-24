@@ -634,6 +634,7 @@ svg .marca:hover rect.celda,
 svg .marca:focus-visible rect.celda { opacity: 0.8; }
 svg .marca:focus-visible .hit { stroke: var(--anillo); stroke-width: 2; }
 svg .seleccion { fill: none; stroke: var(--texto-1); stroke-width: 2; }
+svg .recuadro-mapa { fill: none; stroke: var(--eje); }
 svg .plano { outline: none; }
 svg .plano:focus-visible + .foco-plano { stroke: var(--anillo); stroke-width: 2; fill: none; }
 

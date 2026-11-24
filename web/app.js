@@ -6,6 +6,7 @@
    sin librerías. Cada gráfica tiene su tabla equivalente y un tooltip que también responde al teclado. */
 
 const RUTA_DATOS = "data/";
+const RUTA_GEO = "geo/colombia_deptos.json";
 const MIN_CONTRATOS_ANIO_CALOR = 10000;
 const RESTRICCION = { desde: "2026-01-31", hasta: "2026-06-21" };
 // Años con elección presidencial: la Ley de Garantías restringe la contratación directa cuatro meses antes.
@@ -25,7 +26,7 @@ const ALERTAS = [
   ["anticipo_alto", "Anticipo alto", "Anticipo mayor al 50 % del valor (Ley 80 de 1993, art. 40)"],
 ];
 
-// Mapa de teselas: un cuadro por departamento en una posición aproximada [clave, sigla, columna, fila].
+// Departamentos: [clave para emparejar los nombres de SECOP II, sigla en el mapa, columna, fila de la antigua vista en cuadros].
 const TESELAS = [
   ["SAN ANDRES", "SAI", 0, 0], ["LA GUAJIRA", "LAG", 5, 0],
   ["ATLANTICO", "ATL", 3, 1], ["MAGDALENA", "MAG", 4, 1], ["CESAR", "CES", 5, 1],
@@ -591,23 +592,41 @@ function dibujarMapa(deptos) {
   }
   const fuera = deptos.filter((d) => !teselaDe(d.departamento));
 
-  redibujarMapa = registrar(cont, (ancho) => {
+  // Límites oficiales de los departamentos (DANE, Marco Geoestadístico Nacional), ya simplificados y proyectados.
+  fetch(RUTA_GEO)
+    .then((r) => {
+      if (!r.ok) throw new Error(`${RUTA_GEO} respondió ${r.status}`);
+      return r.json();
+    })
+    .then((geo) => {
+      redibujarMapa = registrar(cont, (ancho) => pintarMapa(geo, ancho));
+    })
+    .catch((error) => {
+      console.error("Falló el mapa", error);
+      cont.classList.remove("cargando");
+      cont.replaceChildren(h("p", { class: "vacio-mensaje body-6", texto: "No se pudo cargar el mapa de departamentos." }));
+    });
+
+  function pintarMapa(geo, ancho) {
     const met = METRICAS_MAPA[estado.metrica];
     const valores = [...porClave.values()].map((d) => d[estado.metrica]).filter((v) => v != null).sort((a, b) => a - b);
     const posicion = (v) => (valores.length > 1 ? valores.indexOf(v) / (valores.length - 1) : 0.5);
-    const gap = 4;
-    const lado = Math.min(60, Math.floor((ancho - gap * 6) / 7));
-    const anchoMapa = 7 * lado + 6 * gap;
-    const alto = 8 * lado + 7 * gap;
-    const svg = lienzoSvg(anchoMapa + 8, alto + 8, `Mapa de departamentos: ${met.nombre.toLowerCase()}`);
-    const capa = s("g", { transform: "translate(4,4)" }, svg);
+    // El mapa conserva su proporción; en pantallas anchas se limita la altura para que quepa sin desplazarse.
+    const k = Math.min((ancho - 8) / geo.ancho, 600 / geo.alto);
+    const anchoMapa = Math.round(geo.ancho * k);
+    const alto = Math.round(geo.alto * k);
+    const svg = lienzoSvg(anchoMapa + 8, alto + 8, `Mapa de departamentos de Colombia: ${met.nombre.toLowerCase()}`);
+    const capa = s("g", { transform: `translate(4,4) scale(${k})` }, svg);
+    const r = geo.recuadro;
+    s("rect", { class: "recuadro-mapa", x: r.x, y: r.y, width: r.ancho, height: r.alto, rx: 6 / k, "vector-effect": "non-scaling-stroke" }, capa);
+    const fuente = (px) => px / k;
 
-    for (const [clave, sigla, c, f] of TESELAS) {
+    for (const dep of geo.departamentos) {
+      const clave = dep.clave;
+      const sigla = (TESELAS.find(([c]) => c === clave) || [])[1] || "";
       const d = porClave.get(clave);
-      const x = c * (lado + gap);
-      const y = f * (lado + gap);
       if (!d) {
-        s("rect", { class: "vacio", x, y, width: lado, height: lado, rx: 4 }, capa);
+        s("path", { class: "vacio", d: dep.d, stroke: "var(--superficie)", "stroke-width": 0.8, "vector-effect": "non-scaling-stroke" }, capa);
         continue;
       }
       const v = d[estado.metrica];
@@ -615,11 +634,26 @@ function dibujarMapa(deptos) {
       const tinta = textoSobre(color);
       const elegido = estado.depto === d.departamento;
       const g = s("g", { class: "marca", tabindex: 0, role: "button", "data-clave": clave, "aria-pressed": String(elegido), "aria-label": `${titulo(d.departamento)}: ${met.largo(v)}` }, capa);
-      s("rect", { class: "celda hit", x, y, width: lado, height: lado, rx: 4, fill: color }, g);
-      const conValor = lado >= 40;
-      texto(g, { x: x + lado / 2, y: y + lado / 2 + (conValor ? -2 : 4), "text-anchor": "middle", fill: tinta, "font-size": 12, "font-weight": 600, "pointer-events": "none" }, sigla);
-      if (conValor) texto(g, { x: x + lado / 2, y: y + lado / 2 + 13, "text-anchor": "middle", fill: tinta, "font-size": 12, "pointer-events": "none" }, met.corto(v));
-      if (elegido) s("rect", { class: "seleccion", x: x - 3, y: y - 3, width: lado + 6, height: lado + 6, rx: 7, "pointer-events": "none" }, g);
+      if (dep.recuadro) {
+        // Las islas son diminutas: todo el recuadro toma el color del dato y es la zona que se toca.
+        s("rect", { class: "celda hit", x: r.x, y: r.y, width: r.ancho, height: r.alto, rx: 6 / k, fill: color }, g);
+        s("path", { d: dep.d, fill: tinta, "pointer-events": "none" }, g);
+      } else {
+        s("path", { class: "celda hit", d: dep.d, fill: color, stroke: "var(--superficie)", "stroke-width": 0.8, "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" }, g);
+      }
+      // Sigla y valor solo donde el departamento es lo bastante grande para leerlos.
+      const areaPx = dep.area * k * k;
+      if (!dep.recuadro && areaPx >= 1500) {
+        const conValor = areaPx >= 3400;
+        texto(g, { x: dep.x, y: dep.y + (conValor ? fuente(-2) : fuente(4)), "text-anchor": "middle", fill: tinta, style: `font-size:${fuente(11)}px;font-weight:600`, "pointer-events": "none" }, sigla);
+        if (conValor) texto(g, { x: dep.x, y: dep.y + fuente(11), "text-anchor": "middle", fill: tinta, style: `font-size:${fuente(11)}px`, "pointer-events": "none" }, met.corto(v));
+      }
+      if (dep.recuadro) {
+        texto(g, { x: r.x + r.ancho / 2, y: r.y + r.alto - fuente(18), "text-anchor": "middle", fill: tinta, style: `font-size:${fuente(11)}px;font-weight:600`, "pointer-events": "none" }, sigla);
+        texto(g, { x: r.x + r.ancho / 2, y: r.y + r.alto - fuente(5), "text-anchor": "middle", fill: tinta, style: `font-size:${fuente(11)}px`, "pointer-events": "none" }, met.corto(v));
+      }
+      if (elegido && dep.recuadro) s("rect", { class: "seleccion", x: r.x, y: r.y, width: r.ancho, height: r.alto, rx: 6 / k, "pointer-events": "none", "vector-effect": "non-scaling-stroke" }, g);
+      else if (elegido) s("path", { class: "seleccion", d: dep.d, "pointer-events": "none", "vector-effect": "non-scaling-stroke" }, g);
       const elegir = () => {
         estado.focoMapa = clave;
         seleccionarDepto(elegido ? null : d.departamento);
@@ -649,7 +683,7 @@ function dibujarMapa(deptos) {
       estado.focoMapa = null;
       foco?.focus({ preventScroll: true });
     }
-  });
+  }
 
   $("#n-mapa").textContent = fuera.length
     ? `${entero(sumar(fuera, "contratos"))} contratos sin departamento definido no aparecen en el mapa.`
